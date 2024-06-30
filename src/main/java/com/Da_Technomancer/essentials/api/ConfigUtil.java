@@ -32,8 +32,9 @@ public class ConfigUtil{
 		return stack.is(WRENCH) || stack.canPerformAction(WRENCH_ACTION);
 	}
 
-	private static final NumberFormat scientific = new DecimalFormat("0.###E0");
-	private static final NumberFormat engineering = new DecimalFormat("##0.###E0");
+	private static final NumberFormat plain = new DecimalFormat("0.000");
+	private static final NumberFormat scientific = new DecimalFormat("0.000E0");
+	private static final NumberFormat engineering = new DecimalFormat("##0.000E0");
 
 	/**
 	 * Formats floating point values for display
@@ -45,50 +46,33 @@ public class ConfigUtil{
 		if(format == null){
 			format = ESConfig.numberDisplay.get();
 		}
+		float absValue = Math.abs(value);
 		switch(format){
-			case SCIENTIFIC:
-				float absValue = Math.abs(value);
-				if(absValue == 0){
-					return "0";
-				}
-				if(absValue < 1_000_000 && absValue >= 0.001F){
-					return trimTrail(Math.round(value * 1000F) / 1000F);
-				}
-
-				return scientific.format(value);
-			case ENGINEERING:
-				float absoValue = Math.abs(value);
-				if(absoValue == 0){
-					return "0";
-				}
-				if(absoValue < 1000 && absoValue >= 0.001F){
-					return trimTrail(Math.round(value * 1000F) / 1000F);
-				}
-
-				return engineering.format(value);
 			case HEX:
 				//This option exists mainly for debugging. It shows the entire hex definition of the float value
 				return Float.toHexString(value);
-			case NORMAL:
-			default:
-				return Float.toString(value);
+			case SCIENTIFIC:
+				if(absValue >= 10_000 || absValue < 0.001F){
+					return scientific.format(value);
+				}
+				break;
+			case ENGINEERING:
+				if(absValue >= 10_000 || absValue < 0.001F){
+					return engineering.format(value);
+				}
+				break;
 		}
-	}
-
-	private static String trimTrail(float valFloat){
-		String val = Float.toString(valFloat);
-		//Removes the .0 java appends to string representations of integer-valued floats
-		while(val.contains(".") && (val.endsWith("0") || val.endsWith("."))){
-			val = val.substring(0, val.length() - 2);
+		if(absValue == 0){
+			return "0";
 		}
-		return val;
+		return plain.format(value);
 	}
 
 	public enum NumberTypes{
 
-		NORMAL(),//Java default
-		SCIENTIFIC(),//Scientific notation when magnitude outside of 0.001-1000
-		ENGINEERING(),//Engineering notation when magnitude outside of 0.001-1000
+		NORMAL(),
+		SCIENTIFIC(),//Scientific notation when magnitude outside of 0.001-10000
+		ENGINEERING(),//Engineering notation when magnitude outside of 0.001-10000
 		HEX()//Display the raw float hexadecimal. This exists mainly for debugging. You want this? WHAT IS WRONG WITH YOU?
 	}
 }
