@@ -4,6 +4,9 @@ import com.Da_Technomancer.essentials.api.ConfigUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.WorldBuffer;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -13,10 +16,11 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -54,6 +58,12 @@ import java.util.Set;
  */
 public class MultiPistonBase extends Block{
 
+	public static final MapCodec<MultiPistonBase> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(Codec.BOOL.fieldOf("sticky").forGetter(MultiPistonBase::isSticky)).apply(instance, MultiPistonBase::new));
+
+	private boolean isSticky(){
+		return sticky;
+	}
+
 	private static final int DIST_LIMIT = 15;
 	private static final int PUSH_LIMIT = 64;
 	private static final int DELAY = RedstoneUtil.DELAY;
@@ -77,6 +87,11 @@ public class MultiPistonBase extends Block{
 	}
 
 	@Override
+	protected MapCodec<? extends Block> codec(){
+		return ESBlocks.MULTI_PISTON_TYPE.value();
+	}
+
+	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder){
 		builder.add(ESProperties.FACING, ESProperties.EXTENDED, ESProperties.SHIFTING);
 	}
@@ -89,7 +104,7 @@ public class MultiPistonBase extends Block{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter worldIn, List<Component> tooltip, TooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn){
 		tooltip.add(Component.translatable("tt.essentials.multi_piston.desc", DIST_LIMIT, PUSH_LIMIT));
 		tooltip.add(Component.translatable("tt.essentials.multi_piston.reds"));
 	}
@@ -124,16 +139,16 @@ public class MultiPistonBase extends Block{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
 		//Rotate with a wrench
-		if(ConfigUtil.isWrench(playerIn.getItemInHand(hand)) && !state.getValue(ESProperties.EXTENDED) && !state.getValue(ESProperties.SHIFTING)){
+		if(ConfigUtil.isWrench(stack) && !state.getValue(ESProperties.EXTENDED) && !state.getValue(ESProperties.SHIFTING)){
 			if(!worldIn.isClientSide){
 				BlockState endState = state.cycle(ESProperties.FACING);//MCP note: cycle
 				worldIn.setBlockAndUpdate(pos, endState);
 			}
-			return InteractionResult.SUCCESS;
+			return ItemInteractionResult.SUCCESS;
 		}
-		return InteractionResult.PASS;
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 	}
 
 	@Override

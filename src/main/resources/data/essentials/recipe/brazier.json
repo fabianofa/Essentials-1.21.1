@@ -1,0 +1,19 @@
+{
+	"result" : {
+		"id" : "essentials:brazier"
+	},
+	"pattern" : [
+		"###",
+		" $ ",
+		" $ "
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"#" : {
+			"item" : "minecraft:tuff"
+		},
+		"$" : {
+			"item" : "minecraft:tuff"
+		}
+	}
+}

@@ -1,26 +1,24 @@
 package com.Da_Technomancer.essentials.gui.container;
 
-import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.api.BlockMenuContainer;
+import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.blocks.SlottedChestTileEntity;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ObjectHolder;
 
 public class SlottedChestContainer extends BlockMenuContainer<SlottedChestTileEntity>{
 
-	@ObjectHolder(registryName = "menu", value = Essentials.MODID + ":slotted_chest")
-	private static MenuType<SlottedChestContainer> TYPE = null;
 
 	public SlottedChestContainer(int id, Inventory playerInventory, FriendlyByteBuf data){
-		super(TYPE, id, playerInventory, data);
+		super(ESContainers.SLOTTED_CHEST_CONTAINER.get(), id, playerInventory, data);
+		HolderLookup.Provider registries = playerInventory.player.level().registryAccess();
 		for(int i = 0; i < te.lockedInv.length; i++){
 			//Populate the client-side lock info from the byte buffer
-			te.lockedInv[i] = data.readItem();
+			te.lockedInv[i] = BlockUtil.bufferToItemStack(data, registries);
 		}
 	}
 
@@ -81,7 +79,7 @@ public class SlottedChestContainer extends BlockMenuContainer<SlottedChestTileEn
 
 				Slot slot = this.slots.get(i);
 				ItemStack itemstack = slot.getItem();
-				if(!itemstack.isEmpty() && ItemStack.isSameItemSameTags(movedStack, itemstack)){
+				if(!itemstack.isEmpty() && BlockUtil.sameItem(movedStack, itemstack)){
 					int j = itemstack.getCount() + movedStack.getCount();
 					int maxSize = Math.min(slot.getMaxStackSize(), movedStack.getMaxStackSize());
 					if(j <= maxSize){

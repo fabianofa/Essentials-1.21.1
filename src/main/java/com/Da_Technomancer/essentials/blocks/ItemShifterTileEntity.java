@@ -1,9 +1,11 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import com.Da_Technomancer.essentials.gui.container.ItemShifterContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
@@ -11,28 +13,31 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.itemShifter;
 
-public class ItemShifterTileEntity extends AbstractShifterTileEntity implements Container{
+public class ItemShifterTileEntity extends AbstractShifterTileEntity<IItemHandler> implements Container, IItemCapable{
 
 	public static final BlockEntityType<ItemShifterTileEntity> TYPE = ESTileEntity.createType(ItemShifterTileEntity::new, itemShifter);
 
 	private ItemStack inventory = ItemStack.EMPTY;
-	private LazyOptional<IItemHandler> outputOptionalCache = LazyOptional.empty();
+	private final IItemHandler itemHandler = new InventoryHandler();
 
 	public ItemShifterTileEntity(BlockPos pos, BlockState state){
 		super(TYPE, pos, state);
+	}
+
+	@Override
+	protected BlockCapability<IItemHandler, Direction> getCapability(){
+		return Capabilities.ItemHandler.BLOCK;
 	}
 
 	@Override
@@ -45,57 +50,35 @@ public class ItemShifterTileEntity extends AbstractShifterTileEntity implements 
 			return;
 		}
 
-		//We use a cache for the output, which the ejectItem method will use instead of checking for the TE independently
-		if(!outputOptionalCache.isPresent()){
-			BlockEntity endTE = level.getBlockEntity(endPos);
-			if(endTE != null){
-				outputOptionalCache = endTE.getCapability(ForgeCapabilities.ITEM_HANDLER, getFacing().getOpposite());
-			}
+		if(outputCache == null){
+			refreshCache();
 		}
 
-		inventory = ejectItem(level, endPos, getFacing(), inventory, outputOptionalCache);
+		inventory = ejectItem(level, endPos, inventory, outputCache);
 	}
 
 	@Override
-	public void refreshCache(){
-		super.refreshCache();
-		outputOptionalCache = LazyOptional.empty();
-	}
-
-	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 
 		if(!inventory.isEmpty()){
-			nbt.put("inv", inventory.save(new CompoundTag()));
+			nbt.put("inv", BlockUtil.stackToNBT(inventory, registries));
 		}
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 
 		if(nbt.contains("inv")){
-			inventory = ItemStack.of(nbt.getCompound("inv"));
+			inventory = BlockUtil.nbtToItemStack(nbt.getCompound("inv"), registries);
 		}
 	}
 
+	@Nullable
 	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		invOptional.invalidate();
-	}
-
-	private LazyOptional<IItemHandler> invOptional = LazyOptional.of(InventoryHandler::new);
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction facing){
-		if(cap == ForgeCapabilities.ITEM_HANDLER){
-			return (LazyOptional<T>) invOptional;
-		}
-
-		return super.getCapability(cap, facing);
+	public IItemHandler getItemHandler(Direction dir){
+		return itemHandler;
 	}
 
 	@Override

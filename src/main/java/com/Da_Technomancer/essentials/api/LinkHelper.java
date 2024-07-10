@@ -1,17 +1,23 @@
 package com.Da_Technomancer.essentials.api;
 
 import com.Da_Technomancer.essentials.Essentials;
-import com.Da_Technomancer.essentials.api.packets.SendLongToClient;
+import com.Da_Technomancer.essentials.api.packets.SendLongToTE;
+import com.Da_Technomancer.essentials.items.ESItems;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
@@ -22,10 +28,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import org.apache.commons.lang3.tuple.Pair;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 import javax.annotation.Nullable;
 import java.awt.*;
@@ -36,7 +41,7 @@ import java.util.stream.Collectors;
 
 public class LinkHelper{
 
-	public static final TagKey<Item> LINKING_TOOLS = ItemTags.create(new ResourceLocation(Essentials.MODID, "linking_tool"));
+	public static final TagKey<Item> LINKING_TOOLS = ItemTags.create(ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "linking_tool"));
 	public static final String POS_NBT = "c_link";
 	public static final String DIM_NBT = "c_link_dim";
 	public static final byte LINK_PACKET_ID = 8;//Used to add a link with position encoded into the message
@@ -94,7 +99,7 @@ public class LinkHelper{
 		BlockPos tePos = te.getTE().getBlockPos();
 		BlockPos linkPos = endpoint.getTE().getBlockPos().subtract(tePos);
 		linked.add(linkPos);
-		BlockUtil.sendClientPacketAround(te.getTE().getLevel(), tePos, new SendLongToClient(LinkHelper.LINK_PACKET_ID, linkPos.asLong(), tePos));
+		BlockUtil.sendClientPacketAround(te.getTE().getLevel(), tePos, new SendLongToTE(LinkHelper.LINK_PACKET_ID, linkPos.asLong(), tePos));
 		te.getTE().setChanged();
 		return true;
 	}
@@ -106,7 +111,7 @@ public class LinkHelper{
 	public void removeLink(BlockPos endpoint){
 		BlockPos tePos = te.getTE().getBlockPos();
 		linked.remove(endpoint);
-		BlockUtil.sendClientPacketAround(te.getTE().getLevel(), tePos, new SendLongToClient(LinkHelper.REMOVE_PACKET_ID, endpoint.asLong(), tePos));
+		BlockUtil.sendClientPacketAround(te.getTE().getLevel(), tePos, new SendLongToTE(LinkHelper.REMOVE_PACKET_ID, endpoint.asLong(), tePos));
 		te.getTE().setChanged();
 	}
 
@@ -118,8 +123,8 @@ public class LinkHelper{
 		for(BlockPos relPos : linkedCopy){
 			BlockPos endPos = relPos.offset(selfPos);
 			BlockEntity endTe = world.getBlockEntity(endPos);
-			if(endTe instanceof ILinkTE){
-				((ILinkTE) endTe).removeLinkEnd(selfPos);
+			if(endTe instanceof ILinkTE linkTE){
+				linkTE.removeLinkEnd(selfPos);
 			}
 		}
 	}
@@ -142,11 +147,11 @@ public class LinkHelper{
 	}
 
 	/**
-	 * Helper method to build a rendering frustrum box with all links
+	 * Helper method to build a rendering frustum box with all links
 	 * @return A BB for returning to TileEntity::getRenderBoundingBox
 	 */
-	public AABB frustrum(){
-		//Expands the frustrum box to include linked positions
+	public static AABB frustum(ILinkTE te){
+		//Expands the frustum box to include linked positions
 		BlockPos pos = te.getTE().getBlockPos();
 		int[] min = new int[3];
 		int[] max = new int[3];
@@ -189,12 +194,12 @@ public class LinkHelper{
 			return wrench;
 		}
 
-		Pair<String, BlockPos> wrenchData = readLinkNBT(wrench);
-		if(wrenchData != null && wrenchData.getLeft().equals(getWorldString(player.level()))){
-			BlockEntity prevTE = player.level().getBlockEntity(wrenchData.getRight());
+		LinkedPosition wrenchData = readLinkNBT(wrench);
+		if(wrenchData != null && wrenchData.targetWorld.equals(getWorldString(player.level()))){
+			BlockEntity prevTE = player.level().getBlockEntity(wrenchData.targetPos);
 			if(prevTE instanceof ILinkTE && ((ILinkTE) prevTE).canLink(linkTE) && prevTE != linkTE){
 				int range = ((ILinkTE) prevTE).getRange();
-				if(wrenchData.getRight().distSqr(linkTE.getTE().getBlockPos()) <= range * range){
+				if(wrenchData.targetPos.distSqr(linkTE.getTE().getBlockPos()) <= range * range){
 					ILinkTE prevLinkTe = (ILinkTE) prevTE;
 					//If the link already exists, remove it
 					BlockPos relLinkPos = linkTE.getTE().getBlockPos().subtract(prevTE.getBlockPos());
@@ -207,7 +212,7 @@ public class LinkHelper{
 						if(prevLinkTe.getLinks().size() < prevLinkTe.getMaxLinks()){
 							if(prevLinkTe.createLinkSource(linkTE, player)){
 								linkTE.createLinkEnd(prevLinkTe);
-								player.displayClientMessage(Component.translatable("tt.essentials.linking.success", prevTE.getBlockPos(), linkTE.getTE().getBlockPos()), true);
+								player.displayClientMessage(Component.translatable("tt.essentials.linking.success", BlockUtil.blockPosToChatComponent(prevTE.getBlockPos()), BlockUtil.blockPosToChatComponent(linkTE.getTE().getBlockPos())), true);
 							}
 						}else{
 							player.displayClientMessage(Component.translatable("tt.essentials.linking.full", prevLinkTe.getMaxLinks()), true);
@@ -236,34 +241,21 @@ public class LinkHelper{
 	}
 
 	private static void setLinkNBT(ItemStack linkingTool, BlockPos targetPos, String targetWorld){
-		CompoundTag itemNBT = linkingTool.getOrCreateTag();
-		itemNBT.putLong(POS_NBT, targetPos.asLong());
-		itemNBT.putString(DIM_NBT, targetWorld);
+		linkingTool.set(ESItems.LINKING_POS_DATA.get(), new LinkHelper.LinkedPosition(targetWorld, targetPos));
 	}
 
 	private static void clearLinkNBT(ItemStack linkingTool){
-		CompoundTag itemNBT = linkingTool.getTag();
-		if(itemNBT != null){
-			itemNBT.remove(POS_NBT);
-			itemNBT.remove(DIM_NBT);
-		}
+		linkingTool.set(ESItems.LINKING_POS_DATA.get(), null);
 	}
 
 	@Nullable
-	private static Pair<String, BlockPos> readLinkNBT(ItemStack linkingTool){
-		CompoundTag itemNBT = linkingTool.getTag();
-		if(itemNBT == null){
-			return null;
-		}
-		if(itemNBT.contains(POS_NBT) && itemNBT.contains(DIM_NBT)){
-			return Pair.of(itemNBT.getString(DIM_NBT), BlockPos.of(itemNBT.getLong(POS_NBT)));
-		}
-		return null;
+	private static LinkedPosition readLinkNBT(ItemStack linkingTool){
+		return linkingTool.get(ESItems.LINKING_POS_DATA.get());
 	}
 
 	//Rendering
 
-	public static final ResourceLocation LINK_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/model/link_line.png");
+	public static final ResourceLocation LINK_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/model/link_line.png");
 
 	@OnlyIn(Dist.CLIENT)
 	private static RenderType LINK_TYPE;
@@ -320,7 +312,15 @@ public class LinkHelper{
 		}
 
 		private static RenderType initType(){
-			return RenderType.create("link_line", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 256, false, true, CompositeState.builder().setShaderState(RenderStateShard.RENDERTYPE_SOLID_SHADER).setTextureState(new TextureStateShard(LINK_TEXTURE, false, false)).setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY).createCompositeState(false));
+			return RenderType.create("link_line", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 256, false, true, CompositeState.builder().setShaderState(RenderStateShard.RENDERTYPE_SOLID_SHADER).setTextureState(new TextureStateShard(LINK_TEXTURE, false, false)).setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY).setWriteMaskState(RenderStateShard.COLOR_WRITE).setLightmapState(RenderStateShard.LIGHTMAP).createCompositeState(false));
 		}
+	}
+
+
+	public static record LinkedPosition(String targetWorld, BlockPos targetPos){
+
+		public static final Codec<LinkedPosition> CODEC = RecordCodecBuilder.create(instance -> instance.group(Codec.STRING.fieldOf("world").forGetter(LinkedPosition::targetWorld), BlockPos.CODEC.fieldOf("pos").forGetter(LinkedPosition::targetPos)).apply(instance, LinkedPosition::new));
+
+		public static final StreamCodec<ByteBuf, LinkedPosition> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, LinkedPosition::targetWorld, BlockPos.STREAM_CODEC, LinkedPosition::targetPos, LinkedPosition::new);
 	}
 }

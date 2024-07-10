@@ -2,14 +2,17 @@ package com.Da_Technomancer.essentials.blocks.redstone;
 
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.redstone.IWireConnect;
+import com.Da_Technomancer.essentials.blocks.ESBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,6 +27,11 @@ public class WireCircuit extends AbstractTile{
 		super("wire_circuit", true);
 		String name = "wire_circuit";
 		registerDefaultState(defaultBlockState().setValue(ESProperties.CONNECTIONS, 0));
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.WIRE_CIRCUIT_TYPE.value();
 	}
 
 	@Override
@@ -50,8 +58,7 @@ public class WireCircuit extends AbstractTile{
 
 		//Wires propogate block updates in all horizontal directions to make sure any attached circuit can update when a new connection is made/broken
 		BlockEntity te = worldIn.getBlockEntity(pos);
-		if(te instanceof WireTileEntity){
-			WireTileEntity wte = (WireTileEntity) te;
+		if(te instanceof WireTileEntity wte){
 
 			//Prevent the repeated updating of the same wire within a gametick
 			long worldTime = worldIn.getGameTime();
@@ -81,7 +88,7 @@ public class WireCircuit extends AbstractTile{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter worldIn, List<Component> tooltip, TooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn){
 		tooltip.add(Component.translatable("tt.essentials.wire_circuit"));
 	}
 }

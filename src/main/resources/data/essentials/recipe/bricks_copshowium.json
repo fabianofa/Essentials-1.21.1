@@ -1,0 +1,29 @@
+{
+	"neoforge:conditions": [
+		{
+			"type": "neoforge:not",
+			"value": {
+				"type": "neoforge:tag_empty",
+				"tag" : "crossroads:ingots/copshowium"
+			}
+		}
+	],
+	"type" : "minecraft:crafting_shaped",
+	"result" : {
+		"id" : "essentials:bricks_copshowium",
+		"count" : 8
+	},
+	"pattern" : [
+		"***",
+		"*I*",
+		"***"
+	],
+	"key" : {
+		"*" : {
+			"tag" : "minecraft:stone_bricks"
+		},
+		"I" : {
+			"tag" : "crossroads:ingots/copshowium"
+		}
+	}
+}

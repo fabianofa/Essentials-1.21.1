@@ -35,7 +35,7 @@ public abstract class AbstractTile extends BaseEntityBlock implements IWireConne
 	private static final VoxelShape BB = box(0, 0, 0, 16, 2, 16);
 
 	@Override
-	public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter world, BlockPos pos, Player player){
+	public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader world, BlockPos pos, Player player){
 		return new ItemStack(ESBlocks.wireCircuit, 1);
 	}
 

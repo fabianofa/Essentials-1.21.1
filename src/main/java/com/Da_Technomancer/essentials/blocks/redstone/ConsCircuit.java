@@ -1,23 +1,21 @@
 package com.Da_Technomancer.essentials.blocks.redstone;
 
-import com.Da_Technomancer.essentials.api.ConfigUtil;
+import com.Da_Technomancer.essentials.blocks.ESBlocks;
 import com.Da_Technomancer.essentials.gui.container.CircuitContainer;
-import com.Da_Technomancer.essentials.items.ESItems;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -26,6 +24,11 @@ public class ConsCircuit extends AbstractCircuit{
 
 	public ConsCircuit(){
 		super("cons_circuit");
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.CONS_CIRCUIT_TYPE.value();
 	}
 
 	@Override
@@ -43,17 +46,12 @@ public class ConsCircuit extends AbstractCircuit{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		BlockEntity te;
-		if(ConfigUtil.isWrench(playerIn.getItemInHand(hand))){
-			super.use(state, worldIn, pos, playerIn, hand, hit);
-		}else if(playerIn.getItemInHand(hand).getItem() == ESItems.circuitWrench){
-			return InteractionResult.PASS;
-		}else if(!worldIn.isClientSide && (te = worldIn.getBlockEntity(pos)) instanceof ConstantCircuitTileEntity){
-			NetworkHooks.openScreen((ServerPlayer) playerIn, (MenuProvider) te, buf -> CircuitContainer.encodeData(buf, te.getBlockPos(), ((ConstantCircuitTileEntity) te).settingStr));
+	public InteractionResult useWithoutItem(BlockState state, Level worldIn, BlockPos pos, Player playerIn, BlockHitResult hit){
+		if(playerIn instanceof ServerPlayer sPlayer && worldIn.getBlockEntity(pos) instanceof ConstantCircuitTileEntity tte){
+			sPlayer.openMenu(tte, buf -> CircuitContainer.encodeData(buf, tte.getBlockPos(), tte.settingStr));
 		}
 
-		return InteractionResult.SUCCESS;
+		return InteractionResult.sidedSuccess(worldIn.isClientSide);
 	}
 
 	@Nullable
@@ -68,7 +66,7 @@ public class ConsCircuit extends AbstractCircuit{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter worldIn, List<Component> tooltip, TooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn){
 		tooltip.add(Component.translatable("tt.essentials.cons_circuit"));
 	}
 }

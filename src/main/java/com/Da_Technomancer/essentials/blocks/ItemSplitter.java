@@ -2,12 +2,14 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -21,6 +23,11 @@ public class ItemSplitter extends BasicItemSplitter{
 
 	public ItemSplitter(){
 		super("item_splitter", ESBlocks.getMetalProperty());
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.ITEM_SPLITTER_TYPE.value();
 	}
 
 	@Override
@@ -45,7 +52,7 @@ public class ItemSplitter extends BasicItemSplitter{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.item_splitter_basic"));
 		tooltip.add(Component.translatable("tt.essentials.item_splitter_formula"));
 		tooltip.add(Component.translatable("tt.essentials.item_splitter_chute"));

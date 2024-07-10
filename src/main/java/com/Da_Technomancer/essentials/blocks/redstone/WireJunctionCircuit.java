@@ -1,13 +1,16 @@
 package com.Da_Technomancer.essentials.blocks.redstone;
 
+import com.Da_Technomancer.essentials.blocks.ESBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -19,6 +22,11 @@ public class WireJunctionCircuit extends AbstractTile{
 
 	public WireJunctionCircuit(){
 		super("wire_junction_circuit");
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.WIRE_JUNCTION_CIRCUIT_TYPE.value();
 	}
 
 	@Override
@@ -63,7 +71,7 @@ public class WireJunctionCircuit extends AbstractTile{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter worldIn, List<Component> tooltip, TooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn){
 		tooltip.add(Component.translatable("tt.essentials.wire_junction_circuit"));
 	}
 }

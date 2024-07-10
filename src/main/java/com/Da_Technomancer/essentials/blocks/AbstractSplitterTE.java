@@ -1,18 +1,23 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.ESConfig;
+import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 
-public abstract class AbstractSplitterTE extends BlockEntity implements ITickableTileEntity{
+public abstract class AbstractSplitterTE<H> extends BlockEntity implements ITickableTileEntity{
 
 	protected int mode = 6;
 	protected final BlockPos[] endPos = new BlockPos[2];
+	protected BlockCapabilityCache<H, Direction>[] outputCache = new BlockCapabilityCache[2];
 
 	protected AbstractSplitterTE(BlockEntityType<? extends AbstractSplitterTE> type, BlockPos pos, BlockState state){
 		super(type, pos, state);
@@ -22,13 +27,7 @@ public abstract class AbstractSplitterTE extends BlockEntity implements ITickabl
 		return SplitDistribution.TWELVE;
 	}
 
-	protected Direction getFacing(){
-		BlockState state = getBlockState();
-		if(!state.hasProperty(ESProperties.FACING)){
-			return Direction.DOWN;
-		}
-		return state.getValue(ESProperties.FACING);
-	}
+	protected abstract BlockCapability<H, Direction> getCapability();
 
 	public int getMode(){
 		return mode;
@@ -41,22 +40,32 @@ public abstract class AbstractSplitterTE extends BlockEntity implements ITickabl
 		return mode;
 	}
 
+	@Override
+	public void setBlockState(BlockState state){
+		super.setBlockState(state);
+		level.invalidateCapabilities(worldPosition);
+		refreshCache();
+	}
+
 	public void refreshCache(){
-		Direction dir = getFacing();
-		int maxChutes = ESConfig.itemChuteRange.get();
+		if(level instanceof ServerLevel serverLevel){
+			Direction dir = BlockUtil.evaluateProperty(getBlockState(), ESProperties.FACING, Direction.DOWN);
+			int maxChutes = ESConfig.itemChuteRange.get();
 
-		for(int i = 0; i < 2; i++){
-			int extension;
+			for(int i = 0; i < 2; i++){
+				dir = dir.getOpposite();
+				int extension;
 
-			for(extension = 1; extension <= maxChutes; extension++){
-				BlockState target = level.getBlockState(worldPosition.relative(dir, extension));
-				if(target.getBlock() != ESBlocks.itemChute || target.getValue(ESProperties.AXIS) != dir.getAxis()){
-					break;
+				for(extension = 1; extension <= maxChutes; extension++){
+					BlockState target = level.getBlockState(worldPosition.relative(dir, extension));
+					if(target.getBlock() != ESBlocks.itemChute || target.getValue(ESProperties.AXIS) != dir.getAxis()){
+						break;
+					}
 				}
-			}
 
-			endPos[i] = worldPosition.relative(dir, extension);
-			dir = dir.getOpposite();
+				endPos[i] = worldPosition.relative(dir, extension);
+				outputCache[i] = BlockCapabilityCache.create(getCapability(), serverLevel, endPos[i], dir.getOpposite());
+			}
 		}
 	}
 

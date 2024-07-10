@@ -1,0 +1,19 @@
+{
+	"result" : {
+		"id" : "essentials:speed_hopper"
+	},
+	"pattern" : [
+		"# #",
+		"#C#",
+		" # "
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"#" : {
+			"tag" : "c:ingots/gold"
+		},
+		"C" : {
+			"tag" : "c:chests"
+		}
+	}
+}

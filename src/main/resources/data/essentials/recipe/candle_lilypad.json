@@ -1,0 +1,14 @@
+{
+	"result" : {
+		"id" : "essentials:candle_lilypad"
+	},
+	"ingredients" : [
+		{
+			"item" : "minecraft:lily_pad"
+		},
+		{
+			"tag" : "essentials:light_on_lilypad"
+		}
+	],
+	"type" : "minecraft:crafting_shapeless"
+}

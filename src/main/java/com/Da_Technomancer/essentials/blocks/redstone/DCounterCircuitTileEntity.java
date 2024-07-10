@@ -3,6 +3,7 @@ package com.Da_Technomancer.essentials.blocks.redstone;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.blocks.ESTileEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,8 +43,8 @@ public class DCounterCircuitTileEntity extends CircuitTileEntity{
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		nbt.putFloat("counter", counter);
 		nbt.putFloat("input_back", prevInputBack);
 		nbt.putBoolean("input_left", hadInputSideL);
@@ -51,8 +52,8 @@ public class DCounterCircuitTileEntity extends CircuitTileEntity{
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		counter = nbt.getFloat("counter");
 		prevInputBack = nbt.getFloat("input_back");
 		hadInputSideL = nbt.getBoolean("input_left");

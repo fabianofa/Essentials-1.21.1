@@ -3,12 +3,11 @@ package com.Da_Technomancer.essentials;
 import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.api.ConfigUtil;
 import com.Da_Technomancer.essentials.api.packets.ConfigureWrenchOnServer;
-import com.Da_Technomancer.essentials.api.packets.EssentialsPackets;
 import com.Da_Technomancer.essentials.api.redstone.IWireConnect;
 import com.Da_Technomancer.essentials.blocks.WitherCannon;
 import com.Da_Technomancer.essentials.blocks.redstone.CircuitTileEntity;
 import com.Da_Technomancer.essentials.gui.*;
-import com.Da_Technomancer.essentials.gui.container.*;
+import com.Da_Technomancer.essentials.gui.container.ESContainers;
 import com.Da_Technomancer.essentials.items.CircuitWrench;
 import com.Da_Technomancer.essentials.items.ESItems;
 import com.Da_Technomancer.essentials.render.CannonSkullRenderer;
@@ -16,64 +15,43 @@ import com.Da_Technomancer.essentials.render.TESRRegistry;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.EntityRenderersEvent;
-import net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.network.IContainerFactory;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 
 public class ESEventHandlerClient{
 
-	@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD, modid = Essentials.MODID, value = Dist.CLIENT)
+	@EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD, modid = Essentials.MODID, value = Dist.CLIENT)
 	public static class ESModEventsClient{
 
 		@SubscribeEvent
 		@SuppressWarnings("unused")
-		public static void registerContainers(RegisterEvent e){
-			e.register(ForgeRegistries.Keys.MENU_TYPES, helper -> {
-				registerCon(ItemShifterContainer::new, ItemShifterScreen::new, "item_shifter", helper);
-				registerCon(FluidShifterContainer::new, FluidShifterScreen::new, "fluid_shifter", helper);
-				registerCon(SlottedChestContainer::new, SlottedChestScreen::new, "slotted_chest", helper);
-				registerCon(CircuitWrenchContainer::new, CircuitWrenchScreen::new, "circuit_wrench", helper);
-				registerCon(ConstantCircuitContainer::new, ConstantCircuitScreen::new, "cons_circuit", helper);
-				registerCon(TimerCircuitContainer::new, TimerCircuitScreen::new, "timer_circuit", helper);
-				registerCon(AutoCrafterContainer::new, AutoCrafterScreen::new, "auto_crafter", helper);
-				registerCon(DelayCircuitContainer::new, DelayCircuitScreen::new, "delay_circuit", helper);
-				registerCon(PulseCircuitContainer::new, PulseCircuitScreen::new, "pulse_circuit", helper);
-			});
-		}
-
-		/**
-		 * Creates and registers both a container type and a screen factory. Not usable on the physical server due to screen factory.
-		 * @param cons Container factory
-		 * @param screenFactory The screen factory to be linked to the type
-		 * @param id The ID to use
-		 * @param helper Registry helper
-		 * @param <T> Container subclass
-		 */
-		private static <T extends AbstractContainerMenu> void registerCon(IContainerFactory<T> cons, MenuScreens.ScreenConstructor<T, AbstractContainerScreen<T>> screenFactory, String id, RegisterEvent.RegisterHelper<MenuType<?>> helper){
-			MenuType<T> contType = ESEventHandlerCommon.ESModEventsCommon.registerConType(cons, id, helper);
-			MenuScreens.register(contType, screenFactory);
+		public static void registerScreens(RegisterMenuScreensEvent e){
+			e.register(ESContainers.ITEM_SHIFTER_CONTAINER.get(), ItemShifterScreen::new);
+			e.register(ESContainers.FLUID_SHIFTER_CONTAINER.get(), FluidShifterScreen::new);
+			e.register(ESContainers.SLOTTED_CHEST_CONTAINER.get(), SlottedChestScreen::new);
+			e.register(ESContainers.CIRCUIT_WRENCH_CONTAINER.get(), CircuitWrenchScreen::new);
+			e.register(ESContainers.CONSTANT_CIRCUIT_CONTAINER.get(), ConstantCircuitScreen::new);
+			e.register(ESContainers.TIMER_CIRCUIT_CONTAINER.get(), TimerCircuitScreen::new);
+			e.register(ESContainers.DELAY_CIRCUIT_CONTAINER.get(), DelayCircuitScreen::new);
+			e.register(ESContainers.PULSE_CIRCUIT_CONTAINER.get(), PulseCircuitScreen::new);
 		}
 
 		@SuppressWarnings("unused")
@@ -94,14 +72,14 @@ public class ESEventHandlerClient{
 		//If the player is holding a CircuitWrench (or subclass for addons)
 		if(player != null && (player.getMainHandItem().getItem() instanceof CircuitWrench || player.getOffhandItem().getItem() instanceof CircuitWrench)){
 			final int RANGE = 64;
-			Vec3 eyePos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+			Vec3 eyePos = e.getCamera().getPosition();
 			PoseStack matrix = e.getPoseStack();
 			matrix.pushPose();
 			MultiBufferSource.BufferSource buffer = Minecraft.getInstance().renderBuffers().bufferSource();
 			matrix.translate(-eyePos.x, -eyePos.y, -eyePos.z);
 			for(BlockEntity te : BlockUtil.getAllLoadedBlockEntitiesRange(player.level(), player.blockPosition(), RANGE)){
-				if(te instanceof CircuitTileEntity){
-					float output = ((CircuitTileEntity) te).getOutput();
+				if(te instanceof CircuitTileEntity circuit){
+					float output = circuit.getOutput();
 					float[] relPos = {te.getBlockPos().getX() + 0.5F, te.getBlockPos().getY() + 0.5F, te.getBlockPos().getZ() + 0.5F};
 					if(RANGE * RANGE > Minecraft.getInstance().getEntityRenderDispatcher().distanceToSqr(relPos[0], relPos[1], relPos[2])){
 						renderNameplate(e.getPoseStack(), buffer, relPos, ConfigUtil.formatFloat(output, null));
@@ -116,7 +94,8 @@ public class ESEventHandlerClient{
 		matrix.pushPose();
 		matrix.translate(relPos[0], relPos[1], relPos[2]);
 		matrix.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
-		matrix.scale(-0.025F, -0.025F, 0.025F);
+//		matrix.mulPose(Axis.YP.rotationDegrees(180));
+		matrix.scale(0.025F, -0.025F, -0.025F);
 		Matrix4f matrix4f = matrix.last().pose();
 		Font fontrenderer = Minecraft.getInstance().font;
 		float xSt = -fontrenderer.width(nameplate) / 2F;
@@ -127,7 +106,7 @@ public class ESEventHandlerClient{
 
 	@SuppressWarnings("unused")
 	@SubscribeEvent
-	public static void pickBlockCircuitWrench(InteractionKeyMappingTriggered e){
+	public static void pickBlockCircuitWrench(InputEvent.InteractionKeyMappingTriggered e){
 		if(e.isPickBlock() && Minecraft.getInstance().player.getItemInHand(e.getHand()).getItem() == ESItems.circuitWrench){
 			//When using pick block on a circuit and holding a circuit wrench, override normal behaviour and set the wrench to that circuit type
 			HitResult hit = Minecraft.getInstance().hitResult;
@@ -148,12 +127,14 @@ public class ESEventHandlerClient{
 					}
 					if(index < 0){
 						//Didn't find this circuit
+						/* Several legitimately unregistered IWireConnect instances
 						//Log an error and abort
-						Essentials.logger.warn("Attempted to select unregistered circuit: " + ForgeRegistries.BLOCKS.getKey(block));
+						Essentials.logger.warn("Attempted to select unregistered circuit: " + BuiltInRegistries.BLOCK.getKey(block));
+						*/
 						return;
 					}
 					e.setCanceled(true);
-					EssentialsPackets.channel.sendToServer(new ConfigureWrenchOnServer(index));
+					PacketDistributor.sendToServer(new ConfigureWrenchOnServer(index));
 					Minecraft.getInstance().player.displayClientMessage(Component.translatable("tt.essentials.circuit_wrench_setting").setStyle(CircuitWrenchScreen.CIRCUIT_WRENCH_STYLE).append(Component.translatable(CircuitWrench.MODES.get(index).wireAsBlock().getDescriptionId())), true);
 				}
 			}

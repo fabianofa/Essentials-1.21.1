@@ -1,6 +1,5 @@
 package com.Da_Technomancer.essentials.gui.container;
 
-import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.api.FluidSlotManager;
 import com.Da_Technomancer.essentials.api.IntDeferredRef;
 import com.Da_Technomancer.essentials.blocks.FluidShifterTileEntity;
@@ -11,17 +10,12 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.registries.ObjectHolder;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class FluidShifterContainer extends AbstractContainerMenu{
-
-	@ObjectHolder(registryName="menu", value=Essentials.MODID + ":fluid_shifter")
-	private static MenuType<FluidShifterContainer> TYPE = null;
 
 	private final Container inv;
 	private final BlockPos pos;
@@ -35,7 +29,7 @@ public class FluidShifterContainer extends AbstractContainerMenu{
 	}
 
 	public FluidShifterContainer(int id, Inventory playerInventory, BlockPos pos){
-		super(TYPE, id);
+		super(ESContainers.FLUID_SHIFTER_CONTAINER.get(), id);
 		this.inv = new FluidSlotManager.FakeInventory(this);
 		this.pos = pos;
 		BlockEntity t = playerInventory.player.level().getBlockEntity(pos);

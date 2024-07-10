@@ -12,7 +12,7 @@ import net.minecraft.world.item.ItemStack;
 
 public class SlottedChestScreen extends BlockMenuScreen<SlottedChestContainer, SlottedChestTileEntity>{
 
-	private static final ResourceLocation CHEST_GUI_TEXTURE = new ResourceLocation("textures/gui/container/generic_54.png");
+	private static final ResourceLocation CHEST_GUI_TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/generic_54.png");
 
 	public SlottedChestScreen(SlottedChestContainer cont, Inventory playerInventory, Component text){
 		super(cont, playerInventory, text);

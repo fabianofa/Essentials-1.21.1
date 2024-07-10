@@ -6,10 +6,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public class ObsidianCuttingKit extends Item{
@@ -21,7 +19,7 @@ public class ObsidianCuttingKit extends Item{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level worldIn, List<Component> tooltip, TooltipFlag flagIn){
+	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flagIn){
 		tooltip.add(Component.translatable("tt.essentials.obsidian_kit.desc"));
 	}
 

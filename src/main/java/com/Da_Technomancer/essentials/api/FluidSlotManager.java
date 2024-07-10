@@ -1,14 +1,12 @@
 package com.Da_Technomancer.essentials.api;
 
 import com.Da_Technomancer.essentials.Essentials;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
@@ -20,54 +18,65 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.logging.log4j.Level;
 
 import javax.annotation.Nullable;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class FluidSlotManager{
 
-	/**
-	 * Keep a map of all registered fluids to a short ID. Of note is that the map is sorted by registry ID to ensure that all clients and the server agree upon mappings without synchronization
-	 * No entry with value -1 is stored, and an id of -1 should be treated as meaning 'empty fluidstack'
-	 * This map does contain "minecraft:empty"
-	 */
-	private static BiMap<ResourceLocation, Short> fluidIDs = null;
+//	Not needed since Neoforge added synced integer IDs for fluid registry
+//	/**
+//	 * Keep a map of all registered fluids to a short ID. Of note is that the map is sorted by registry ID to ensure that all clients and the server agree upon mappings without synchronization
+//	 * No entry with value -1 is stored, and an id of -1 should be treated as meaning 'empty fluidstack'
+//	 * This map does contain "minecraft:empty"
+//	 */
+//	private static BiMap<ResourceLocation, Short> fluidIDs = null;
+//
+//	private static BiMap<ResourceLocation, Short> getFluidMap(){
+//		if(fluidIDs == null){
+//			fluidIDs = HashBiMap.create(BuiltInRegistries.FLUID.size());
+//			//As execution order is important, this cannot work as a parallel stream
+//			//This must have the exact same result on the server and client sides
+//			final AtomicReference<Short> value = new AtomicReference<>((short) 0);
+//			BuiltInRegistries.FLUID.keySet().stream().sorted(ResourceLocation::compareTo).forEach(key -> {
+//				short newId = value.get();
+//				value.set((short) (newId + 1));
+//				try{
+//					fluidIDs.put(key, newId);
+//				}catch(IllegalArgumentException e){
+//					Essentials.logger.log(Level.ERROR, "Duplicate while creating fluid map; report to mod author");
+//					Essentials.logger.log(Level.ERROR, "Entry being added: " + key.toString() + " -> " + newId);
+//					Essentials.logger.log(Level.ERROR, "Fluid bi-map dump:");
+//					Essentials.logger.log(Level.ERROR, fluidIDs);
+//					Essentials.logger.log(Level.ERROR, "Stacktrace:", e);
+//				}
+//			});
+//		}
+//		return fluidIDs;
+//	}
 
-	private static BiMap<ResourceLocation, Short> getFluidMap(){
-		if(fluidIDs == null){
-			fluidIDs = HashBiMap.create(ForgeRegistries.FLUIDS.getKeys().size());
-			//As execution order is important, this cannot work as a parallel stream
-			//This must have the exact same result on the server and client sides
-			final AtomicReference<Short> value = new AtomicReference<>((short) 0);
-			ForgeRegistries.FLUIDS.getKeys().stream().sorted(ResourceLocation::compareTo).forEach(key -> {
-				short newId = value.get();
-				value.set((short) (newId + 1));
-				try{
-					fluidIDs.put(key, newId);
-				}catch(IllegalArgumentException e){
-					Essentials.logger.log(Level.ERROR, "Duplicate while creating fluid map; report to mod author");
-					Essentials.logger.log(Level.ERROR, "Entry being added: " + key.toString() + " -> " + newId);
-					Essentials.logger.log(Level.ERROR, "Fluid bi-map dump:");
-					Essentials.logger.log(Level.ERROR, fluidIDs);
-					Essentials.logger.log(Level.ERROR, "Stacktrace:", e);
-				}
-			});
+	private static int fluidToNumericalID(Fluid fluid){
+		if(fluid == null){
+			return -1;
 		}
-		return fluidIDs;
+		return BuiltInRegistries.FLUID.getId(fluid);
+	}
+
+	private static Fluid numericalIdToFluid(int id){
+		if(id < 0){
+			return Fluids.EMPTY;
+		}
+		return BuiltInRegistries.FLUID.byId(id);
 	}
 
 	//General
@@ -94,7 +103,7 @@ public class FluidSlotManager{
 
 
 	private static final int MAX_HEIGHT = 48;
-	private static final ResourceLocation OVERLAY = new ResourceLocation(Essentials.MODID, "textures/gui/rectangle_fluid_overlay.png");
+	private static final ResourceLocation OVERLAY = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/rectangle_fluid_overlay.png");
 
 	/**
 	 * Keeps a fluidstack synced between the server and open containers on clients. All containers must register trackInt on the two IntReferenceHolders in this class
@@ -103,7 +112,7 @@ public class FluidSlotManager{
 	 */
 	public FluidSlotManager(FluidStack init, int capacity){
 		this.capacity = capacity;
-		fluidId = getFluidMap().getOrDefault(ForgeRegistries.FLUIDS.getKey(init.getFluid()), (short) -1);
+		fluidId = fluidToNumericalID(init.getFluid());
 		fluidQty = init.getAmount() - Short.MAX_VALUE;
 	}
 
@@ -142,7 +151,7 @@ public class FluidSlotManager{
 	}
 
 	public void updateState(FluidStack newFluid){
-		fluidId = getFluidMap().getOrDefault(ForgeRegistries.FLUIDS.getKey(newFluid.getFluid()), (short) -1);
+		fluidId = fluidToNumericalID(newFluid.getFluid());
 		fluidQty = newFluid.getAmount() - Short.MAX_VALUE;
 
 		for(int index = 0; index < fluidItemInSlots.size(); index++){
@@ -166,11 +175,7 @@ public class FluidSlotManager{
 		if(fluidId < 0){
 			return FluidStack.EMPTY;
 		}
-		//These values default to empty to prevent the possibility of crashing if any registry is corrupted
-		Fluid f = ForgeRegistries.FLUIDS.getValue(getFluidMap().inverse().get(fluidId));
-		if(f == null){
-			f = Fluids.EMPTY;
-		}
+		Fluid f = numericalIdToFluid(fluidId);
 		return new FluidStack(f, qtyRef.get() + Short.MAX_VALUE);
 	}
 
@@ -206,7 +211,7 @@ public class FluidSlotManager{
 			if(clientState.isEmpty()){
 				tooltip.add(Component.translatable("tt.essentials.fluid_contents.empty"));
 			}else{
-				tooltip.add(clientState.getDisplayName());
+				tooltip.add(clientState.getHoverName());
 			}
 			tooltip.add(Component.translatable("tt.essentials.fluid_contents", clientState.getAmount(), capacity));
 		}
@@ -270,7 +275,7 @@ public class FluidSlotManager{
 
 		@Override
 		public boolean mayPlace(ItemStack stack){
-			return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
+			return stack.getCapability(Capabilities.FluidHandler.ITEM) != null;
 		}
 
 		@Override
@@ -284,10 +289,9 @@ public class FluidSlotManager{
 				ItemStack outSlot = container.getItem(outSlotIndex);
 				ItemStack inSlotCopy = inSlot.copy();//We make a copy of the inSlot so we can restore in case this fails
 				inSlotCopy.setCount(1);//Size needs to be one or item fluid capabilities refuse to work
-				LazyOptional<IFluidHandlerItem> opt = inSlotCopy.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM);
-				IFluidHandler teHandler = te.getFluidHandler();
-				if(opt.isPresent()){
-					IFluidHandlerItem itemHandler = opt.orElseThrow(NullPointerException::new);
+				IFluidHandlerItem itemHandler = inSlotCopy.getCapability(Capabilities.FluidHandler.ITEM);
+				if(itemHandler != null){
+					IFluidHandler teHandler = te.getFluidHandler();
 
 					//'Simple' route- we don't have to verify the output item
 					if(outSlot.isEmpty()){
@@ -364,8 +368,7 @@ public class FluidSlotManager{
 									//Failed- revert the changes and continue
 									inSlotCopy = inSlot.copy();
 									inSlotCopy.setCount(1);
-									opt = inSlotCopy.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM);
-									itemHandler = opt.orElseThrow(NullPointerException::new);
+									itemHandler = inSlotCopy.getCapability(Capabilities.FluidHandler.ITEM);
 									container.setItem(getSlotIndex(), inSlot);
 									//no markDirty, as the final result is the same as the start state
 								}
@@ -392,8 +395,7 @@ public class FluidSlotManager{
 								//Failed- revert the changes and continue
 								inSlotCopy = inSlot.copy();
 								inSlotCopy.setCount(1);
-								opt = inSlotCopy.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM);
-								itemHandler = opt.orElseThrow(NullPointerException::new);
+								itemHandler = inSlotCopy.getCapability(Capabilities.FluidHandler.ITEM);
 								container.setItem(getSlotIndex(), inSlot);
 								//no markDirty, as the final result is the same as the start state
 							}
@@ -468,7 +470,7 @@ public class FluidSlotManager{
 
 		@Override
 		public boolean canPlaceItem(int index, ItemStack stack){
-			return index == 0 && stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
+			return index == 0 && stack.getCapability(Capabilities.FluidHandler.ITEM) != null;
 		}
 
 		@Override

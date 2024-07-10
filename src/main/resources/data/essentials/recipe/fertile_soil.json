@@ -1,0 +1,26 @@
+{
+	"result" : {
+		"id" : "essentials:fertile_soil",
+		"count" : 3
+	},
+	"pattern" : [
+		"#$#",
+		"***",
+		"^^^"
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"#" : {
+			"tag" : "essentials:fertile_soil_filler"
+		},
+		"$" : {
+			"item" : "minecraft:fermented_spider_eye"
+		},
+		"*" : {
+			"item" : "minecraft:clay_ball"
+		},
+		"^" : {
+			"item" : "minecraft:dirt"
+		}
+	}
+}

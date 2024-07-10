@@ -2,11 +2,13 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -28,6 +30,11 @@ public class AnalogLamp extends Block{
 		ESBlocks.queueForRegister(name, this);
 	}
 
+	@Override
+	protected MapCodec<? extends Block> codec(){
+		return ESBlocks.ANALOG_LAMP_TYPE.value();
+	}
+
 	private static Boolean propagateFunction(BlockState state, BlockGetter world, BlockPos pos, EntityType<?> type){
 		return Boolean.TRUE;
 	}
@@ -39,7 +46,7 @@ public class AnalogLamp extends Block{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.analog_lamp.desc"));
 	}
 

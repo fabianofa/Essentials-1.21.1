@@ -3,18 +3,21 @@ package com.Da_Technomancer.essentials.blocks;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import com.Da_Technomancer.essentials.api.TEBlock;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -23,6 +26,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -35,7 +39,7 @@ public class Brazier extends TEBlock{
 	private static final VoxelShape SHAPE;
 
 	static{
-		SHAPE = Shapes.or(Block.box(4, 0, 4, 12, 10, 12), Block.box(1, 10, 1, 15, 14, 15));
+		SHAPE = Shapes.join(Shapes.or(Block.box(2, 11, 2, 14, 16, 14), Block.box(4, 4, 6, 12, 8, 10), Block.box(6, 4, 4, 10, 8, 12)), Shapes.or(Block.box(4, 0, 4, 12, 10, 12), Block.box(1, 10, 1, 15, 14, 15)), BooleanOp.ONLY_SECOND);
 	}
 
 	protected Brazier(){
@@ -64,6 +68,11 @@ public class Brazier extends TEBlock{
 	}
 
 	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.BRAZIER_TYPE.value();
+	}
+
+	@Override
 	public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context){
 		return SHAPE;
 	}
@@ -74,7 +83,7 @@ public class Brazier extends TEBlock{
 		if(type == 1){
 			entityIn.clearFire();
 		}else if(type == 2){
-			entityIn.setSecondsOnFire(5);
+			entityIn.igniteForSeconds(5);
 		}
 
 		super.stepOn(worldIn, pos, state, entityIn);
@@ -92,19 +101,19 @@ public class Brazier extends TEBlock{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		BlockEntity te = worldIn.getBlockEntity(pos);
-		if(te instanceof BrazierTileEntity){
-			ItemStack out = ((BrazierTileEntity) te).useItem(playerIn.getItemInHand(hand));
-			if(!out.equals(playerIn.getItemInHand(hand))){
-				if(!worldIn.isClientSide){
-					playerIn.setItemInHand(hand, out);
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit){
+		BlockEntity te = world.getBlockEntity(pos);
+		if(te instanceof BrazierTileEntity brazier){
+			ItemStack out = brazier.useItem(stack);
+			if(!out.equals(stack)){
+				if(!world.isClientSide){
+					player.setItemInHand(hand, out);
 				}
-				return InteractionResult.CONSUME;
+				return ItemInteractionResult.sidedSuccess(world.isClientSide);
 			}
 		}
 
-		return InteractionResult.FAIL;
+		return ItemInteractionResult.FAIL;
 	}
 
 	@Override
@@ -132,7 +141,7 @@ public class Brazier extends TEBlock{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.brazier.desc"));
 		tooltip.add(Component.translatable("tt.essentials.brazier.purpose"));
 	}

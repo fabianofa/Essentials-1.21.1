@@ -1,27 +1,30 @@
 package com.Da_Technomancer.essentials.api.packets;
 
-import com.Da_Technomancer.essentials.Essentials;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.VarLong;
+import net.minecraft.network.codec.StreamCodec;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.DirectionalPayloadHandler;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class EssentialsPackets{
 
-	public static SimpleChannel channel;
-	private static int index = 0;
+	public static final StreamCodec<ByteBuf, BlockPos> BLOCK_POS_CODEC = new StreamCodec<>() {
+		public BlockPos decode(ByteBuf buf) {
+			return BlockPos.of(VarLong.read(buf));
+		}
 
-	public static void preInit(){
-		channel = NetworkRegistry.newSimpleChannel(new ResourceLocation(Essentials.MODID, "channel"), () -> "1.0.0", (s) -> s.equals("1.0.0"), (s) -> s.equals("1.0.0"));
+		public void encode(ByteBuf buf, BlockPos pos) {
+			VarLong.write(buf, pos.asLong());
+		}
+	};
 
-		registerPacket(ConfigureWrenchOnServer.class);
-		registerPacket(SendFloatToClient.class);
-		registerPacket(SendFloatToServer.class);
-		registerPacket(SendNBTToClient.class);
-		registerPacket(SendNBTToServer.class);
-		registerPacket(SendLongToClient.class);
-	}
-
-	private static <T extends Packet> void registerPacket(Class<T> clazz){
-		channel.registerMessage(index++, clazz, PacketManager::encode, (buf) -> PacketManager.decode(buf, clazz), PacketManager::activate);
+	public static void init(RegisterPayloadHandlersEvent e){
+		PayloadRegistrar registrar = e.registrar("1");
+		registrar.playBidirectional(SendFloatToTE.TYPE, SendFloatToTE.STREAM_CODEC, new DirectionalPayloadHandler<>(SendFloatToTE::handlePacketClient, SendFloatToTE::handlePacketServer));
+		registrar.playBidirectional(SendLongToTE.TYPE, SendLongToTE.STREAM_CODEC, new DirectionalPayloadHandler<>(SendLongToTE::handlePacketClient, SendLongToTE::handlePacketServer));
+		registrar.playBidirectional(SendNBTToTE.TYPE, SendNBTToTE.STREAM_CODEC, new DirectionalPayloadHandler<>(SendNBTToTE::handlePacketClient, SendNBTToTE::handlePacketServer));
+		registrar.playToServer(ConfigureWrenchOnServer.TYPE, ConfigureWrenchOnServer.STREAM_CODEC, ConfigureWrenchOnServer::handlePacketServer);
 	}
 }

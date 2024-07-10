@@ -1,21 +1,15 @@
 package com.Da_Technomancer.essentials.gui.container;
 
-import com.Da_Technomancer.essentials.Essentials;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ObjectHolder;
 
 public class ItemShifterContainer extends AbstractContainerMenu{
-
-	@ObjectHolder(registryName="menu", value=Essentials.MODID + ":item_shifter")
-	private static MenuType<ItemShifterContainer> TYPE = null;
 
 	private final Container inv;
 
@@ -24,7 +18,7 @@ public class ItemShifterContainer extends AbstractContainerMenu{
 	}
 
 	public ItemShifterContainer(int id, Inventory playerInventory, Container inv){
-		super(TYPE, id);
+		super(ESContainers.ITEM_SHIFTER_CONTAINER.get(), id);
 		this.inv = inv;
 		addSlot(new Slot(inv, 0, 80, 32));
 

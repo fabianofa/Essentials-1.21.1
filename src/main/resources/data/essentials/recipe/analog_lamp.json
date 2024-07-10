@@ -1,0 +1,19 @@
+{
+	"result" : {
+		"id" : "essentials:analog_lamp"
+	},
+	"pattern" : [
+		" Q ",
+		"QLQ",
+		" Q "
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"L" : {
+			"item" : "minecraft:redstone_lamp"
+		},
+		"Q" : {
+			"tag" : "c:gems/quartz"
+		}
+	}
+}

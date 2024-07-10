@@ -5,8 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Position;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 public class RenderUtil{
 
@@ -28,7 +28,7 @@ public class RenderUtil{
 	 */
 	@OnlyIn(Dist.CLIENT)
 	public static void addVertexBlock(VertexConsumer builder, PoseStack matrix, float x, float y, float z, float u, float v, float normalX, float normalY, float normalZ, int light){
-		builder.vertex(matrix.last().pose(), x, y, z).color(1F, 1F, 1F, 1F).uv(u, v).uv2(light).normal(matrix.last().normal(), normalX, normalY, normalZ).endVertex();
+		builder.addVertex(matrix.last().pose(), x, y, z).setColor(1F, 1F, 1F, 1F).setUv(u, v).setLight(light).setNormal(matrix.last(), normalX, normalY, normalZ);
 	}
 
 	/**
@@ -44,7 +44,7 @@ public class RenderUtil{
 	 */
 	@OnlyIn(Dist.CLIENT)
 	public static void addVertexBlock(VertexConsumer builder, PoseStack matrix, Position pos, float u, float v, Position normal, float alpha, int light){
-		builder.vertex(matrix.last().pose(), (float) pos.x(), (float) pos.y(), (float) pos.z()).color(1F, 1F, 1F, alpha).uv(u, v).uv2(light).normal(matrix.last().normal(), (float) normal.x(), (float) normal.y(), (float) normal.z()).endVertex();
+		builder.addVertex(matrix.last().pose(), (float) pos.x(), (float) pos.y(), (float) pos.z()).setColor(1F, 1F, 1F, alpha).setUv(u, v).setLight(light).setNormal(matrix.last(), (float) normal.x(), (float) normal.y(), (float) normal.z());
 	}
 
 	/**
@@ -60,7 +60,7 @@ public class RenderUtil{
 	 */
 	@OnlyIn(Dist.CLIENT)
 	public static void addVertexBlock(VertexConsumer builder, PoseStack matrix, Position pos, float u, float v, Position normal, int light, int[] col){
-		builder.vertex(matrix.last().pose(), (float) pos.x(), (float) pos.y(), (float) pos.z()).color(col[0], col[1], col[2], col[3]).uv(u, v).uv2(light).normal(matrix.last().normal(), (float) normal.x(), (float) normal.y(), (float) normal.z()).endVertex();
+		builder.addVertex(matrix.last().pose(), (float) pos.x(), (float) pos.y(), (float) pos.z()).setColor(col[0], col[1], col[2], col[3]).setUv(u, v).setLight(light).setNormal(matrix.last(), (float) normal.x(), (float) normal.y(), (float) normal.z());
 	}
 
 	/**

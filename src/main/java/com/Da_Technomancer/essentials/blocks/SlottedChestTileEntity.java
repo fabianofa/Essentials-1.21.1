@@ -1,12 +1,14 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import com.Da_Technomancer.essentials.api.IItemContainer;
 import com.Da_Technomancer.essentials.api.packets.INBTReceiver;
-import com.Da_Technomancer.essentials.api.packets.SendNBTToClient;
+import com.Da_Technomancer.essentials.api.packets.SendNBTToTE;
 import com.Da_Technomancer.essentials.gui.container.SlottedChestContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -19,10 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,7 +29,7 @@ import java.util.Arrays;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.slottedChest;
 
-public class SlottedChestTileEntity extends BlockEntity implements INBTReceiver, MenuProvider, IItemContainer{
+public class SlottedChestTileEntity extends BlockEntity implements INBTReceiver, MenuProvider, IItemContainer, IItemCapable{
 
 	public static final BlockEntityType<SlottedChestTileEntity> TYPE = ESTileEntity.createType(SlottedChestTileEntity::new, slottedChest);
 
@@ -65,26 +64,26 @@ public class SlottedChestTileEntity extends BlockEntity implements INBTReceiver,
 				lockedInv[i].setCount(1);
 			}
 			if(syncToClient && !lockedInv[i].isEmpty()){
-				slotNBT.put("lock" + i, lockedInv[i].save(new CompoundTag()));
+				slotNBT.put("lock" + i, BlockUtil.stackToNBT(lockedInv[i], level.registryAccess()));
 			}
 		}
 		if(syncToClient){
-			BlockUtil.sendClientPacketAround(level, worldPosition, new SendNBTToClient(slotNBT, worldPosition));
+			BlockUtil.sendClientPacketAround(level, worldPosition, new SendNBTToTE(slotNBT, worldPosition));
 		}
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 
 		for(int i = 0; i < inv.length; ++i){
 			if(nbt.contains("slot" + i)){
-				inv[i] = ItemStack.of(nbt.getCompound("slot" + i));
+				inv[i] = BlockUtil.nbtToItemStack(nbt.getCompound("slot" + i), registries);
 			}else{
 				inv[i] = ItemStack.EMPTY;
 			}
 			if(nbt.contains("lockSlot" + i)){
-				lockedInv[i] = ItemStack.of(nbt.getCompound("lockSlot" + i));
+				lockedInv[i] = BlockUtil.nbtToItemStack(nbt.getCompound("lockSlot" + i), registries);
 			}else{
 				inv[i] = ItemStack.EMPTY;
 			}
@@ -92,53 +91,42 @@ public class SlottedChestTileEntity extends BlockEntity implements INBTReceiver,
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
-
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		for(int i = 0; i < inv.length; ++i){
 			if(!inv[i].isEmpty()){
-				nbt.put("slot" + i, inv[i].save(new CompoundTag()));
+				nbt.put("slot" + i, BlockUtil.stackToNBT(inv[i], registries));
 			}
 			if(!lockedInv[i].isEmpty()){
-				nbt.put("lockSlot" + i, lockedInv[i].save(new CompoundTag()));
+				nbt.put("lockSlot" + i, BlockUtil.stackToNBT(lockedInv[i], registries));
 			}
 		}
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(){
-		CompoundTag nbt = super.getUpdateTag();
+	public CompoundTag getUpdateTag(HolderLookup.Provider registries){
+		CompoundTag nbt = super.getUpdateTag(registries);
 		for(int i = 0; i < inv.length; ++i){
 			if(!lockedInv[i].isEmpty()){
-				nbt.put("lockSlot" + i, lockedInv[i].save(new CompoundTag()));
+				nbt.put("lockSlot" + i, BlockUtil.stackToNBT(lockedInv[i], registries));
 			}
 		}
 		return nbt;
 	}
 
-	private final LazyOptional<IItemHandler> invOptional = LazyOptional.of(InventoryHandler::new);
+	private final IItemHandler invHandler = new InventoryHandler();
 
+	@Nullable
 	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		invOptional.invalidate();
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction facing){
-		if(cap == ForgeCapabilities.ITEM_HANDLER){
-			return (LazyOptional<T>) invOptional;
-		}
-
-		return super.getCapability(cap, facing);
+	public IItemHandler getItemHandler(Direction dir){
+		return invHandler;
 	}
 
 	@Override
 	public void receiveNBT(CompoundTag nbt, @Nullable ServerPlayer sender){
 		for(int i = 0; i < inv.length; i++){
 			if(nbt.contains("lock" + i)){
-				lockedInv[i] = ItemStack.of(nbt.getCompound("lock" + i));
+				lockedInv[i] = BlockUtil.nbtToItemStack(nbt.getCompound("lock" + i), level.registryAccess());
 			}else{
 				lockedInv[i] = ItemStack.EMPTY;
 			}
@@ -154,8 +142,9 @@ public class SlottedChestTileEntity extends BlockEntity implements INBTReceiver,
 	@Override
 	public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player){
 		FriendlyByteBuf buf = createContainerBuf();
+		HolderLookup.Provider registryAccess = level.registryAccess();
 		for(ItemStack lock : lockedInv){
-			buf.writeItem(lock);
+			BlockUtil.stackToBuffer(lock, buf, registryAccess);
 		}
 		return new SlottedChestContainer(id, playerInventory, buf);
 	}

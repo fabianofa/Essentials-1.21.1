@@ -1,0 +1,14 @@
+{
+	"type" : "minecraft:crafting_shapeless",
+	"result" : {
+		"id" : "essentials:multi_piston_sticky"
+	},
+	"ingredients" : [
+		{
+			"item" : "essentials:multi_piston"
+		},
+		{
+			"tag" : "forge:slimeballs"
+		}
+	]
+}

@@ -10,7 +10,10 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+
+import java.awt.*;
 
 public class LinkLineRenderer<T extends BlockEntity & ILinkTE> implements BlockEntityRenderer<T>{
 
@@ -30,14 +33,15 @@ public class LinkLineRenderer<T extends BlockEntity & ILinkTE> implements BlockE
 		matrix.pushPose();
 		matrix.translate(0.5, 0.5, 0.5);
 
+		Color col = te.getColor();
 		for(BlockPos link : te.getLinks()){
-			LinkHelper.renderLinkLineToPoint(tePos, Vec3.atLowerCornerOf(link), te.getColor(), partialTicks, matrix, buffer, combinedLight, combinedOverlay);
+			LinkHelper.renderLinkLineToPoint(tePos, Vec3.atLowerCornerOf(link), col, partialTicks, matrix, buffer, combinedLight, combinedOverlay);
 		}
 		matrix.popPose();
 	}
 
 	@Override
-	public boolean shouldRenderOffScreen(T te){
-		return true;
+	public AABB getRenderBoundingBox(T blockEntity){
+		return LinkHelper.frustum(blockEntity);
 	}
 }

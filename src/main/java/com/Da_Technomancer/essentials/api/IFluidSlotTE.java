@@ -1,6 +1,6 @@
 package com.Da_Technomancer.essentials.api;
 
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 public interface IFluidSlotTE{
 

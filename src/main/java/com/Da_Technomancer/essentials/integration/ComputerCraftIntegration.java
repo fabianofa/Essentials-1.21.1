@@ -4,47 +4,40 @@ import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.blocks.ESBlocks;
 import com.Da_Technomancer.essentials.blocks.redstone.CircuitTileEntity;
 import com.Da_Technomancer.essentials.blocks.redstone.InterfaceCircuitTileEntity;
-import dan200.computercraft.api.ForgeComputerCraftAPI;
 import dan200.computercraft.api.lua.LuaException;
 import dan200.computercraft.api.lua.LuaFunction;
 import dan200.computercraft.api.peripheral.IComputerAccess;
 import dan200.computercraft.api.peripheral.IPeripheral;
-import dan200.computercraft.api.peripheral.IPeripheralProvider;
+import dan200.computercraft.api.peripheral.PeripheralCapability;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.ticks.TickPriority;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.IBlockCapabilityProvider;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ComputerCraftIntegration{
 
-	public static void init(){
-		ForgeComputerCraftAPI.registerPeripheralProvider(new CircuitPeripheralProvider());
+	protected static void registerComputerCapabilities(RegisterCapabilitiesEvent e){
+		e.registerBlock(PeripheralCapability.get(), CIRCUIT_PERIPHERAL_PROVIDER, ESBlocks.interfaceCircuit);
 	}
 
-	private static class CircuitPeripheralProvider implements IPeripheralProvider{
-
-		@Nonnull
-		@Override
-		public LazyOptional<IPeripheral> getPeripheral(@Nonnull Level world, @Nonnull BlockPos pos, @Nonnull Direction side){
-			BlockState state = world.getBlockState(pos);
-			if(state.getBlock() == ESBlocks.interfaceCircuit){
-				Direction circuitFace = state.getValue(ESProperties.HORIZ_FACING);
-				CircuitTileEntity.Orient orient = CircuitTileEntity.Orient.getOrient(side, circuitFace);
-				if(orient == CircuitTileEntity.Orient.FRONT){
-					return LazyOptional.of(() -> new CircuitInPeripheral(world, pos));
-				}else if(orient == CircuitTileEntity.Orient.BACK){
-					return LazyOptional.of(() -> new CircuitOutPeripheral(world, pos));
-				}
+	private static final IBlockCapabilityProvider<IPeripheral, Direction> CIRCUIT_PERIPHERAL_PROVIDER = (level, pos, state, te, side) -> {
+		if(state.getBlock() == ESBlocks.interfaceCircuit){
+			Direction circuitFace = state.getValue(ESProperties.HORIZ_FACING);
+			CircuitTileEntity.Orient orient = CircuitTileEntity.Orient.getOrient(side, circuitFace);
+			if(orient == CircuitTileEntity.Orient.FRONT){
+				return new CircuitInPeripheral(level, pos);
+			}else if(orient == CircuitTileEntity.Orient.BACK){
+				return new CircuitOutPeripheral(level, pos);
 			}
-			return LazyOptional.empty();
 		}
-	}
+		return null;
+	};
 
 	public static class CircuitOutPeripheral implements IPeripheral{
 

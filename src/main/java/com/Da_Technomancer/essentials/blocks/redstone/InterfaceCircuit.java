@@ -1,16 +1,23 @@
 package com.Da_Technomancer.essentials.blocks.redstone;
 
+import com.Da_Technomancer.essentials.blocks.ESBlocks;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
-import java.util.function.Function;
 
 public class InterfaceCircuit extends GenericACircuit{
 
-	public InterfaceCircuit(String name, Function<Float, Float> function, boolean usesQuartz){
-		super(name, function, usesQuartz);
+	public InterfaceCircuit(String name, boolean usesQuartz){
+		super(name, name, usesQuartz);
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.INTERFACE_CIRCUIT_TYPE.value();
 	}
 
 	@Override

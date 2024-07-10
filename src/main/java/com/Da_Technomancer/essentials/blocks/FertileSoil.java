@@ -1,50 +1,59 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.ESConfig;
-import com.Da_Technomancer.essentials.api.ConfigUtil;
+import com.Da_Technomancer.essentials.Essentials;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BonemealableBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
-import net.minecraftforge.common.IPlantable;
+import net.neoforged.neoforge.common.util.TriState;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public class FertileSoil extends Block{
 
-	private final BlockState plant;
-	private final SeedCategory category;
+	private static final TagKey<Block> PLANT_WHITELIST = BlockTags.create(ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "fertile_soil_whitelist"));
+	private static final TagKey<Block> PLANT_BLACKLIST = BlockTags.create(ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "fertile_soil_blacklist"));
 
-	protected FertileSoil(String plantName, BlockState plant, SeedCategory category){
-		super(BlockBehaviour.Properties.of().mapColor(category == SeedCategory.HELL_CROP ? MapColor.SAND : MapColor.DIRT).strength(0.5F).sound(SoundType.GRAVEL).randomTicks());
-		this.plant = plant;
-		this.category = category;
-		String name = "fertile_soil_" + plantName;
+	/**
+	 * Fertile soil can be made to work on any block type by adding it to the essentials:blocks/fertile_soil_whitelist tag
+	 * Any block can be removed from fertile soil by adding it to the essentials:blocks/fertile_soil_blacklist tag
+	 * The blacklist overrides the whitelist
+	 */
+	private boolean appliesToPlant(BlockState plantState){
+		return (plantState.getBlock() instanceof BonemealableBlock || plantState.is(PLANT_WHITELIST)) && !plantState.is(PLANT_BLACKLIST);
+	}
+
+	protected FertileSoil(){
+		super(BlockBehaviour.Properties.of().mapColor(MapColor.DIRT).strength(0.5F).sound(SoundType.GRAVEL).randomTicks());
+		String name = "fertile_soil";
 		ESBlocks.queueForRegister(name, this);
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.fertile_soil.desc"));
 		tooltip.add(Component.translatable("tt.essentials.fertile_soil.benefits"));
-		if(category == SeedCategory.HELL_CROP){
-			tooltip.add(Component.translatable("tt.essentials.fertile_soil.quip").setStyle(ConfigUtil.TT_QUIP));//MCP note: setStyle
-		}
 	}
 
 	@Override
-	public boolean canSustainPlant(BlockState state, BlockGetter world, BlockPos pos, Direction direction, IPlantable plantable){
-		return plant.getBlock() == plantable;
+	public TriState canSustainPlant(BlockState state, BlockGetter world, BlockPos soilPos, Direction direction, BlockState plant){
+		return appliesToPlant(plant) ? TriState.TRUE : TriState.DEFAULT;
 	}
 
 	@Override
@@ -53,25 +62,26 @@ public class FertileSoil extends Block{
 	}
 
 	@Override
-	public void tick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random){
+	public void randomTick(BlockState state, ServerLevel worldIn, BlockPos pos, RandomSource random){
 		if(ESConfig.fertileSoilRate.get() < 100D * Math.random()){
 			return;
 		}
 
 		BlockPos upPos = pos.relative(Direction.UP);
-		//Check light levels are high enough if this is a crop
-		if(worldIn.isEmptyBlock(upPos) && (category != SeedCategory.CROP || worldIn.getRawBrightness(upPos, 0) > 7)){
-			worldIn.setBlockAndUpdate(upPos, plant);
+		BlockState upState = worldIn.getBlockState(upPos);
+		if(appliesToPlant(upState)){
+			for(int i = 0; i < 4; i++){
+				Direction offset = Direction.from2DDataValue(i);
+				BlockPos offsetPos = upPos.relative(offset);
+				if(worldIn.getBlockState(offsetPos).isAir() && upState.canSurvive(worldIn, offsetPos)){
+					worldIn.setBlockAndUpdate(offsetPos, upState);
+				}
+			}
 		}
 	}
 
-	public enum SeedCategory{
-
-		CROP(),
-		TREE(),
-		HELL_CROP(),
-		BERRY(),
-		MUSHROOM();
-
+	@Override
+	protected MapCodec<? extends Block> codec(){
+		return ESBlocks.FERTILE_SOIL_TYPE.value();
 	}
 }

@@ -7,6 +7,7 @@ import com.Da_Technomancer.essentials.blocks.ESTileEntity;
 import com.Da_Technomancer.essentials.gui.container.CircuitContainer;
 import com.Da_Technomancer.essentials.gui.container.PulseCircuitContainer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -88,8 +89,8 @@ public class PulseCircuitTileEntity extends CircuitTileEntity implements MenuPro
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		nbt.putInt("setting_d", settingDuration);
 		nbt.putString("setting_s_d", settingStrDuration);
 		nbt.putLong("existed", ticksExisted);
@@ -98,8 +99,8 @@ public class PulseCircuitTileEntity extends CircuitTileEntity implements MenuPro
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		settingDuration = nbt.getInt("setting_d");
 		settingStrDuration = nbt.getString("setting_s_d");
 		ticksExisted = nbt.getLong("existed");

@@ -4,14 +4,17 @@ import com.Da_Technomancer.essentials.api.ConfigUtil;
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import com.Da_Technomancer.essentials.api.TEBlock;
 import com.Da_Technomancer.essentials.api.redstone.IReadable;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -21,7 +24,6 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.entity.Hopper;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -41,20 +43,21 @@ public class SortingHopper extends TEBlock implements IReadable{
 	public static final BooleanProperty ENABLED = HopperBlock.ENABLED;
 
 	//Taken from vanilla hopper to ensure similarity
+	private static final VoxelShape INSIDE = box(2.0, 11.0, 2.0, 14.0, 16.0, 14.0);
 	private static final VoxelShape INPUT_SHAPE = Block.box(0.0D, 10.0D, 0.0D, 16.0D, 16.0D, 16.0D);
 	private static final VoxelShape MIDDLE_SHAPE = Block.box(4.0D, 4.0D, 4.0D, 12.0D, 10.0D, 12.0D);
 	private static final VoxelShape INPUT_MIDDLE_SHAPE = Shapes.or(MIDDLE_SHAPE, INPUT_SHAPE);
-	private static final VoxelShape BASE = Shapes.join(INPUT_MIDDLE_SHAPE, Hopper.INSIDE, BooleanOp.ONLY_FIRST);
+	private static final VoxelShape BASE = Shapes.join(INPUT_MIDDLE_SHAPE, INSIDE, BooleanOp.ONLY_FIRST);
 	private static final VoxelShape DOWN_SHAPE = Shapes.or(BASE, Block.box(6.0D, 0.0D, 6.0D, 10.0D, 4.0D, 10.0D));
 	private static final VoxelShape EAST_SHAPE = Shapes.or(BASE, Block.box(12.0D, 4.0D, 6.0D, 16.0D, 8.0D, 10.0D));
 	private static final VoxelShape NORTH_SHAPE = Shapes.or(BASE, Block.box(6.0D, 4.0D, 0.0D, 10.0D, 8.0D, 4.0D));
 	private static final VoxelShape SOUTH_SHAPE = Shapes.or(BASE, Block.box(6.0D, 4.0D, 12.0D, 10.0D, 8.0D, 16.0D));
 	private static final VoxelShape WEST_SHAPE = Shapes.or(BASE, Block.box(0.0D, 4.0D, 6.0D, 4.0D, 8.0D, 10.0D));
-	private static final VoxelShape DOWN_RAYTRACE_SHAPE = Hopper.INSIDE;
-	private static final VoxelShape EAST_RAYTRACE_SHAPE = Shapes.or(Hopper.INSIDE, Block.box(12.0D, 8.0D, 6.0D, 16.0D, 10.0D, 10.0D));
-	private static final VoxelShape NORTH_RAYTRACE_SHAPE = Shapes.or(Hopper.INSIDE, Block.box(6.0D, 8.0D, 0.0D, 10.0D, 10.0D, 4.0D));
-	private static final VoxelShape SOUTH_RAYTRACE_SHAPE = Shapes.or(Hopper.INSIDE, Block.box(6.0D, 8.0D, 12.0D, 10.0D, 10.0D, 16.0D));
-	private static final VoxelShape WEST_RAYTRACE_SHAPE = Shapes.or(Hopper.INSIDE, Block.box(0.0D, 8.0D, 6.0D, 4.0D, 10.0D, 10.0D));
+	private static final VoxelShape DOWN_RAYTRACE_SHAPE = INSIDE;
+	private static final VoxelShape EAST_RAYTRACE_SHAPE = Shapes.or(INSIDE, Block.box(12.0D, 8.0D, 6.0D, 16.0D, 10.0D, 10.0D));
+	private static final VoxelShape NORTH_RAYTRACE_SHAPE = Shapes.or(INSIDE, Block.box(6.0D, 8.0D, 0.0D, 10.0D, 10.0D, 4.0D));
+	private static final VoxelShape SOUTH_RAYTRACE_SHAPE = Shapes.or(INSIDE, Block.box(6.0D, 8.0D, 12.0D, 10.0D, 10.0D, 16.0D));
+	private static final VoxelShape WEST_RAYTRACE_SHAPE = Shapes.or(INSIDE, Block.box(0.0D, 8.0D, 6.0D, 4.0D, 10.0D, 10.0D));
 
 
 	protected SortingHopper(Properties prop){
@@ -87,6 +90,11 @@ public class SortingHopper extends TEBlock implements IReadable{
 	}
 
 	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.SORTING_HOPPER_TYPE.value();
+	}
+
+	@Override
 	public VoxelShape getInteractionShape(BlockState state, BlockGetter worldIn, BlockPos pos){
 		switch(state.getValue(FACING)){
 			case DOWN:
@@ -100,7 +108,7 @@ public class SortingHopper extends TEBlock implements IReadable{
 			case EAST:
 				return EAST_RAYTRACE_SHAPE;
 			default:
-				return Hopper.INSIDE;
+				return INSIDE;
 		}
 	}
 
@@ -121,15 +129,15 @@ public class SortingHopper extends TEBlock implements IReadable{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
+	public ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand pHand, BlockHitResult hit){
 		if(!worldIn.isClientSide){
 			BlockEntity te = worldIn.getBlockEntity(pos);
-			if(ConfigUtil.isWrench(playerIn.getItemInHand(hand))){
+			if(ConfigUtil.isWrench(stack)){
 				worldIn.setBlockAndUpdate(pos, state.cycle(FACING));//MCP note: cycle
 				if(te instanceof SortingHopperTileEntity shTe){
 					shTe.resetCache();
 				}
-				return InteractionResult.SUCCESS;
+				return ItemInteractionResult.SUCCESS;
 			}
 
 			if(te instanceof SortingHopperTileEntity shTe){
@@ -137,7 +145,20 @@ public class SortingHopper extends TEBlock implements IReadable{
 //				playerIn.addStat(Stats.INSPECT_HOPPER);
 			}
 		}
-		return InteractionResult.SUCCESS;
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+	}
+
+	@Override
+	protected InteractionResult useWithoutItem(BlockState stack, Level worldIn, BlockPos pos, Player playerIn, BlockHitResult pHitResult){
+		if(!worldIn.isClientSide){
+			BlockEntity te = worldIn.getBlockEntity(pos);
+
+			if(te instanceof SortingHopperTileEntity shTe){
+				playerIn.openMenu(shTe);
+//				playerIn.addStat(Stats.INSPECT_HOPPER);
+			}
+		}
+		return InteractionResult.sidedSuccess(worldIn.isClientSide);
 	}
 
 	@Override
@@ -196,7 +217,7 @@ public class SortingHopper extends TEBlock implements IReadable{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.sorting_hopper.desc"));
 		tooltip.add(Component.translatable("tt.essentials.sorting_hopper.quip").setStyle(ConfigUtil.TT_QUIP));//MCP note: setStyle
 	}

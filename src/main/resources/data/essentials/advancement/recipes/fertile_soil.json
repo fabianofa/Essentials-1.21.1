@@ -1,0 +1,32 @@
+{
+	"parent": "minecraft:recipes/root",
+	"rewards": {
+		"recipes": [
+			"essentials:fertile_soil"
+		]
+	},
+	"criteria": {
+		"has_ingr": {
+			"trigger": "minecraft:inventory_changed",
+			"conditions": {
+				"items": [
+					{
+						"item": "minecraft:bonemeal"
+					}
+				]
+			}
+		},
+		"has_recipe": {
+			"trigger": "minecraft:recipe_unlocked",
+			"conditions": {
+				"recipe": "essentials:fertile_soil"
+			}
+		}
+	},
+	"requirements": [
+		[
+			"has_ingr",
+			"has_recipe"
+		]
+	]
+}

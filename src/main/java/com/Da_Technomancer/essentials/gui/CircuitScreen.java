@@ -1,8 +1,7 @@
 package com.Da_Technomancer.essentials.gui;
 
 import com.Da_Technomancer.essentials.Essentials;
-import com.Da_Technomancer.essentials.api.packets.EssentialsPackets;
-import com.Da_Technomancer.essentials.api.packets.SendNBTToServer;
+import com.Da_Technomancer.essentials.api.packets.SendNBTToTE;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.gui.container.CircuitContainer;
 import net.minecraft.client.Minecraft;
@@ -13,13 +12,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.function.Predicate;
 
 public class CircuitScreen<T extends CircuitContainer> extends AbstractContainerScreen<T>{
 
-	protected static final ResourceLocation SEARCH_BAR_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/search_bar.png");
-	protected static final ResourceLocation UI_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/circuit_filler_back.png");
+	protected static final ResourceLocation SEARCH_BAR_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/search_bar.png");
+	protected static final ResourceLocation UI_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/circuit_filler_back.png");
 
 	protected EditBox[] inputBars = new EditBox[menu.inputBars()];
 
@@ -83,7 +83,7 @@ public class CircuitScreen<T extends CircuitContainer> extends AbstractContainer
 
 	@Override
 	public void render(GuiGraphics matrix, int mouseX, int mouseY, float partialTicks){
-		renderBackground(matrix);
+		renderBackground(matrix, mouseX, mouseY, partialTicks);
 		super.render(matrix, mouseX, mouseY, partialTicks);
 //		RenderSystem.disableLighting();
 //		RenderSystem.disableBlend();
@@ -104,7 +104,7 @@ public class CircuitScreen<T extends CircuitContainer> extends AbstractContainer
 
 		//Text labelling input bars
 		for(EditBox inputBar : inputBars){
-			matrix.drawString(font, inputBar.getMessage(), inputBar.getX() - 2, inputBar.getY() - 16, 0x404040);
+			matrix.drawString(font, inputBar.getMessage(), inputBar.getX() - 2, inputBar.getY() - 16, 0x404040, false);
 //			font.draw(matrix, inputBar.getMessage(), inputBar.getX() - 2, inputBar.getY() - 16, 0x404040);
 		}
 	}
@@ -125,7 +125,7 @@ public class CircuitScreen<T extends CircuitContainer> extends AbstractContainer
 		}
 
 		if(menu.pos != null){
-			EssentialsPackets.channel.sendToServer(new SendNBTToServer(nbt, menu.pos));
+			PacketDistributor.sendToServer(new SendNBTToTE(nbt, menu.pos));
 		}
 	}
 }

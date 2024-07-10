@@ -2,12 +2,14 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ConfigUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -33,6 +35,11 @@ public class ItemChute extends Block{
 		ESBlocks.queueForRegister(name, this);
 	}
 
+	@Override
+	protected MapCodec<? extends Block> codec(){
+		return ESBlocks.ITEM_CHUTE_TYPE.value();
+	}
+
 	@Nullable
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context){
@@ -40,14 +47,14 @@ public class ItemChute extends Block{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		if(ConfigUtil.isWrench(playerIn.getItemInHand(hand))){
-			if(!worldIn.isClientSide){
-				worldIn.setBlockAndUpdate(pos, state.cycle(ESProperties.AXIS));//MCP note: cycle
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit){
+		if(ConfigUtil.isWrench(stack)){
+			if(!world.isClientSide){
+				world.setBlockAndUpdate(pos, state.cycle(ESProperties.AXIS));
 			}
-			return InteractionResult.SUCCESS;
+			return ItemInteractionResult.sidedSuccess(world.isClientSide);
 		}
-		return InteractionResult.PASS;
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 	}
 
 	@Override
@@ -56,7 +63,7 @@ public class ItemChute extends Block{
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.item_chute.desc"));
 		tooltip.add(Component.translatable("tt.essentials.decoration"));
 	}
@@ -75,7 +82,7 @@ public class ItemChute extends Block{
 			if(dir.getAxis() == axis){
 				fromPos = pos;
 				pos = pos.relative(dir);
-				worldIn.getBlockState(pos).neighborChanged(worldIn, pos, this, fromPos, false);
+				worldIn.getBlockState(pos).handleNeighborChanged(worldIn, pos, this, fromPos, false);
 			}
 		}
 	}

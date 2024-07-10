@@ -4,13 +4,16 @@ import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.packets.IFloatReceiver;
-import com.Da_Technomancer.essentials.api.packets.SendFloatToClient;
+import com.Da_Technomancer.essentials.api.packets.SendFloatToTE;
+import com.Da_Technomancer.essentials.api.redstone.IRedstoneCapable;
 import com.Da_Technomancer.essentials.api.redstone.IRedstoneHandler;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.blocks.ESBlocks;
 import com.Da_Technomancer.essentials.blocks.ESTileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
@@ -18,28 +21,23 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.ticks.TickPriority;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.*;
 
-public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
+public class CircuitTileEntity extends BlockEntity implements IFloatReceiver, IRedstoneCapable{
 
 	public static final BlockEntityType<CircuitTileEntity> TYPE = ESTileEntity.createType(CircuitTileEntity::new, andCircuit, orCircuit, notCircuit, xorCircuit, maxCircuit, minCircuit, sumCircuit, difCircuit, prodCircuit, quotCircuit, powCircuit, invCircuit, cosCircuit, sinCircuit, tanCircuit, asinCircuit, acosCircuit, atanCircuit, readerCircuit, moduloCircuit, moreCircuit, lessCircuit, equalsCircuit, absCircuit, signCircuit);
 
 	public boolean builtConnections = false;
-	private final ArrayList<WeakReference<LazyOptional<IRedstoneHandler>>> dependents = new ArrayList<>(1);
-	private final ArrayList<Pair<WeakReference<LazyOptional<IRedstoneHandler>>, Orient>> sources = new ArrayList<>(4);
+	private final ArrayList<IRedstoneHandler> dependents = new ArrayList<>(1);
+	private final ArrayList<Pair<IRedstoneHandler, Orient>> sources = new ArrayList<>(4);
 
-	private LazyOptional<IRedstoneHandler> hanOptional = LazyOptional.of(RedsHandler::new);
-	private WeakReference<LazyOptional<IRedstoneHandler>> hanReference = new WeakReference<>(hanOptional);
+	private RedsHandler redsHandler = new RedsHandler();
 
 	private float output = 0;
 
@@ -92,18 +90,17 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 				AbstractCircuit.strongSignalBlockUpdates(level, worldPosition, getOwner(), facing);
 			}
 			output = newPower;
-			BlockUtil.sendClientPacketAround(level, worldPosition, new SendFloatToClient(0, output, worldPosition));
+			BlockUtil.sendClientPacketAround(level, worldPosition, new SendFloatToTE(0, output, worldPosition));
 			for(int i = 0; i < dependents.size(); i++){
-				WeakReference<LazyOptional<IRedstoneHandler>> dependent = dependents.get(i);
-				IRedstoneHandler handler;
-				if(dependent == null || (handler = BlockUtil.get(dependent.get())) == null){
+				IRedstoneHandler dependent = dependents.get(i);
+				if(dependent == null || dependent.isInvalid()){
 					//Entry is no longer valid- remove for faster future checks
 					dependents.remove(i);
 					i--;
 					continue;
 				}
 
-				handler.notifyInputChange(hanReference);
+				dependent.notifyInputChange(redsHandler);
 			}
 
 			setChanged();
@@ -125,11 +122,10 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		boolean[] hasSrc = new boolean[3];
 
 		for(int i = 0; i < sources.size(); i++){
-			Pair<WeakReference<LazyOptional<IRedstoneHandler>>, Orient> src = sources.get(i);
-			WeakReference<LazyOptional<IRedstoneHandler>> ref;
-			IRedstoneHandler handl;
+			Pair<IRedstoneHandler, Orient> src = sources.get(i);
+			IRedstoneHandler ref;
 			//Remove invalid entries to speed up future checks
-			if(src == null || (ref = src.getLeft()) == null || (handl = BlockUtil.get(ref.get())) == null){
+			if(src == null || (ref = src.getLeft()) == null || ref.isInvalid()){
 				sources.remove(i);
 				i--;
 				continue;
@@ -137,7 +133,7 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 
 			int ind = src.getRight().ordinal();
 			if(ind > 2){
-				IndexOutOfBoundsException e = new IndexOutOfBoundsException("Input into redstone device on the front! Pos: " + worldPosition + "; Dim: " + level.dimension() + "Type: " + ForgeRegistries.BLOCKS.getKey(getOwner()));
+				IndexOutOfBoundsException e = new IndexOutOfBoundsException("Input into redstone device on the front! Pos: " + worldPosition + "; Dim: " + level.dimension() + "Type: " + BuiltInRegistries.BLOCK.getKey(getOwner()));
 				Essentials.logger.catching(e);
 				//Invalid state- remove this input and skip
 				sources.remove(i);
@@ -145,7 +141,7 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 				continue;
 			}
 
-			float newInput = RedstoneUtil.sanitize(handl.getOutput());
+			float newInput = RedstoneUtil.sanitize(ref.getOutput());
 			inputs[ind] = RedstoneUtil.chooseInput(inputs[ind], newInput);
 			hasSrc[ind] = true;
 		}
@@ -190,18 +186,16 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 			for(Orient or : Orient.INPUTS){
 				if(own.useInput(or)){
 					Direction checkDir = or.getFacing(dir);
-					BlockEntity te = level.getBlockEntity(worldPosition.relative(checkDir));
-					IRedstoneHandler otherHandler;
-					if(te != null && (otherHandler = BlockUtil.get(te.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, checkDir.getOpposite()))) != null){
-						otherHandler.requestSrc(hanReference, 0, checkDir.getOpposite(), checkDir);
+					IRedstoneHandler otherHandler = level.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, worldPosition.relative(checkDir), checkDir.getOpposite());
+					if(otherHandler != null){
+						otherHandler.requestSrc(redsHandler, 0, checkDir.getOpposite(), checkDir);
 					}
 				}
 			}
 
-			BlockEntity te = level.getBlockEntity(worldPosition.relative(dir));
-			IRedstoneHandler otherHandler;
-			if(te != null && (otherHandler = BlockUtil.get(te.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, dir.getOpposite()))) != null){
-				otherHandler.findDependents(hanReference, 0, dir.getOpposite(), dir);
+			IRedstoneHandler otherHandler = level.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, worldPosition.relative(dir), dir.getOpposite());
+			if(otherHandler != null){
+				otherHandler.findDependents(redsHandler, 0, dir.getOpposite(), dir);
 			}
 
 			handleInputChange(TickPriority.NORMAL);
@@ -216,20 +210,13 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		builtConnections = false;
 		dependents.clear();
 		sources.clear();
-		hanOptional.invalidate();
-		hanOptional = LazyOptional.of(RedsHandler::new);
-		hanReference = new WeakReference<>(hanOptional);
+		redsHandler.invalidate();
+		redsHandler = new RedsHandler();
 		if(level != null && !level.isClientSide){
-			BlockUtil.sendClientPacketAround(level, worldPosition, new SendFloatToClient(0, output, worldPosition));
+			BlockUtil.sendClientPacketAround(level, worldPosition, new SendFloatToTE(0, output, worldPosition));
 			buildConnections();
 			setChanged();
 		}
-	}
-
-	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		hanOptional.invalidate();
 	}
 
 	@Override
@@ -240,35 +227,32 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		output = nbt.getFloat("pow");
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		nbt.putFloat("pow", output);
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(){
-		CompoundTag nbt = super.getUpdateTag();
-		saveAdditional(nbt);
+	public CompoundTag getUpdateTag(HolderLookup.Provider registries){
+		CompoundTag nbt = super.getUpdateTag(registries);
+		saveAdditional(nbt, registries);
 		return nbt;
 	}
 
-	@Nonnull
+	@Nullable
 	@Override
-	@SuppressWarnings("unchecked")
-	public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side){
-		if(cap == RedstoneUtil.REDSTONE_CAPABILITY){
-			Direction dir = getFacing();
-			if(side == null || side.getAxis() != Direction.Axis.Y && (dir == side || getOwner().useInput(Orient.getOrient(side, dir)))){
-				return (LazyOptional<T>) hanOptional;
-			}
+	public IRedstoneHandler getRedstoneHandler(Direction side){
+		Direction dir = getFacing();
+		if(side == null || side.getAxis() != Direction.Axis.Y && (dir == side || getOwner().useInput(Orient.getOrient(side, dir)))){
+			return redsHandler;
 		}
-		return super.getCapability(cap, side);
+		return null;
 	}
 
 	/**
@@ -281,19 +265,28 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 
 	private class RedsHandler implements IRedstoneHandler{
 
+		private boolean invalidated = false;
+
+		public void invalidate(){
+			invalidated = true;
+		}
+
+		@Override
+		public boolean isInvalid(){
+			return invalidated || isRemoved();
+		}
+
 		@Override
 		public float getOutput(){
 			return output;
 		}
 
 		@Override
-		public void findDependents(WeakReference<LazyOptional<IRedstoneHandler>> src, int dist, Direction fromSide, Direction nominalSide){
-			LazyOptional<IRedstoneHandler> srcOption = src.get();
+		public void findDependents(IRedstoneHandler src, int dist, Direction fromSide, Direction nominalSide){
 			Orient or = Orient.getOrient(fromSide, getFacing());
-			if(getOwner().useInput(or) && srcOption != null && srcOption.isPresent()){
-				IRedstoneHandler srcHandler = BlockUtil.get(srcOption);
-				srcHandler.addDependent(hanReference, nominalSide);
-				Pair<WeakReference<LazyOptional<IRedstoneHandler>>, Orient> toAdd = Pair.of(src, or);
+			if(getOwner().useInput(or) && src != null && !src.isInvalid()){
+				src.addDependent(redsHandler, nominalSide);
+				Pair<IRedstoneHandler, Orient> toAdd = Pair.of(src, or);
 				if(!sources.contains(toAdd)){
 					sources.add(toAdd);
 				}
@@ -301,11 +294,9 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		}
 
 		@Override
-		public void requestSrc(WeakReference<LazyOptional<IRedstoneHandler>> dependency, int dist, Direction toSide, Direction nominalSide){
-			LazyOptional<IRedstoneHandler> depenOption;
-			if(Orient.getOrient(toSide, getFacing()) == Orient.FRONT && (depenOption = dependency.get()) != null && depenOption.isPresent()){
-				IRedstoneHandler depHandler = BlockUtil.get(depenOption);
-				depHandler.addSrc(hanReference, nominalSide);
+		public void requestSrc(IRedstoneHandler dependency, int dist, Direction toSide, Direction nominalSide){
+			if(Orient.getOrient(toSide, getFacing()) == Orient.FRONT && dependency != null && !dependency.isInvalid()){
+				dependency.addSrc(redsHandler, nominalSide);
 				if(!dependents.contains(dependency)){
 					dependents.add(dependency);
 				}
@@ -313,10 +304,10 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		}
 
 		@Override
-		public void addSrc(WeakReference<LazyOptional<IRedstoneHandler>> src, Direction fromSide){
+		public void addSrc(IRedstoneHandler src, Direction fromSide){
 			Orient or = Orient.getOrient(fromSide, getFacing());
 			if(or != null && or != Orient.FRONT && getOwner().useInput(or)){
-				Pair<WeakReference<LazyOptional<IRedstoneHandler>>, Orient> toAdd = Pair.of(src, or);
+				Pair<IRedstoneHandler, Orient> toAdd = Pair.of(src, or);
 				if(!sources.contains(toAdd)){
 					sources.add(toAdd);
 					notifyInputChange(src);
@@ -325,7 +316,7 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		}
 
 		@Override
-		public void addDependent(WeakReference<LazyOptional<IRedstoneHandler>> dependent, Direction toSide){
+		public void addDependent(IRedstoneHandler dependent, Direction toSide){
 			Orient or = Orient.getOrient(toSide, getFacing());
 			if(or == Orient.FRONT && !dependents.contains(dependent)){
 				dependents.add(dependent);
@@ -333,7 +324,7 @@ public class CircuitTileEntity extends BlockEntity implements IFloatReceiver{
 		}
 
 		@Override
-		public void notifyInputChange(WeakReference<LazyOptional<IRedstoneHandler>> src){
+		public void notifyInputChange(IRedstoneHandler src){
 			handleInputChange(TickPriority.HIGH);
 		}
 	}

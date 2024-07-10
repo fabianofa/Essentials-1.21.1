@@ -1,0 +1,25 @@
+{
+	"result" : {
+		"id" : "essentials:circuit_wrench"
+	},
+	"pattern" : [
+		" RQ",
+		" YR",
+		"D  "
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"R" : {
+			"tag" : "c:dusts/redstone"
+		},
+		"Y" : {
+			"item" : "essentials:wrench"
+		},
+		"Q" : {
+			"tag" : "c:gems/quartz"
+		},
+		"D" : {
+			"tag" : "c:dyes/red"
+		}
+	}
+}

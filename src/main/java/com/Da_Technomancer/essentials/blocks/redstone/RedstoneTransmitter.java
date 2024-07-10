@@ -1,18 +1,18 @@
 package com.Da_Technomancer.essentials.blocks.redstone;
 
+import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.api.LinkHelper;
 import com.Da_Technomancer.essentials.api.redstone.IWireConnect;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.blocks.ESBlocks;
-import com.Da_Technomancer.essentials.api.ESProperties;
-import com.Da_Technomancer.essentials.api.ILinkTE;
-import com.Da_Technomancer.essentials.api.LinkHelper;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
@@ -35,6 +35,11 @@ public class RedstoneTransmitter extends BaseEntityBlock implements IWireConnect
 		String name = "redstone_transmitter";
 		ESBlocks.queueForRegister(name, this);
 		registerDefaultState(defaultBlockState().setValue(ESProperties.COLOR, DyeColor.WHITE));
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.REDSTONE_TRANSMITTER_TYPE.value();
 	}
 
 	@Override
@@ -70,27 +75,26 @@ public class RedstoneTransmitter extends BaseEntityBlock implements IWireConnect
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		//Handle linking and dyeing
-		ItemStack heldItem = playerIn.getItemInHand(hand);
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit){
+		//Handle linking and dyeing;
 		BlockEntity te = worldIn.getBlockEntity(pos);
 		Item item;
-		if(LinkHelper.isLinkTool(heldItem) && te instanceof RedstoneTransmitterTileEntity){
+		if(LinkHelper.isLinkTool(stack) && te instanceof RedstoneTransmitterTileEntity transmitter){
 			if(!worldIn.isClientSide){
-				LinkHelper.wrench((ILinkTE) te, heldItem, playerIn);
+				LinkHelper.wrench(transmitter, stack, player);
 			}
-			return InteractionResult.SUCCESS;
-		}else if((item = heldItem.getItem()) instanceof DyeItem && te instanceof RedstoneTransmitterTileEntity){
+			return ItemInteractionResult.sidedSuccess(worldIn.isClientSide);
+		}else if((item = stack.getItem()) instanceof DyeItem && te instanceof RedstoneTransmitterTileEntity transmitter){
 			if(!worldIn.isClientSide){
-				((RedstoneTransmitterTileEntity) te).dye(((DyeItem) item).getDyeColor());
+				transmitter.dye(((DyeItem) item).getDyeColor());
 			}
-			return InteractionResult.SUCCESS;
+			return ItemInteractionResult.sidedSuccess(worldIn.isClientSide);
 		}
-		return InteractionResult.PASS;
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.reds_trans.desc"));
 		tooltip.add(Component.translatable("tt.essentials.reds_trans.linking"));
 		tooltip.add(Component.translatable("tt.essentials.reds_trans.dyes"));

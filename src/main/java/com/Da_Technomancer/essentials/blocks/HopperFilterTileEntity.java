@@ -2,28 +2,29 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import com.Da_Technomancer.essentials.api.packets.INBTReceiver;
-import com.Da_Technomancer.essentials.api.packets.SendNBTToClient;
+import com.Da_Technomancer.essentials.api.packets.SendNBTToTE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.NonNullList;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.WorldlyContainer;
-import net.minecraft.world.WorldlyContainerHolder;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BundleItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BundleContents;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.hopperFilter;
 
-public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
+public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver, IItemCapable{
 
 	public static final BlockEntityType<HopperFilterTileEntity> TYPE = ESTileEntity.createType(HopperFilterTileEntity::new, hopperFilter);
 
@@ -51,7 +52,7 @@ public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
 	public void setFilter(ItemStack filter){
 		this.filter = filter;
 		filterItemsCache = null;
-		BlockUtil.sendClientPacketAround(level, worldPosition, new SendNBTToClient(filter.save(new CompoundTag()), worldPosition));
+		BlockUtil.sendClientPacketAround(level, worldPosition, new SendNBTToTE(BlockUtil.stackToNBT(filter, level.registryAccess()), worldPosition));
 		setChanged();
 	}
 
@@ -71,35 +72,33 @@ public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
 	public void setBlockState(BlockState state){
 		super.setBlockState(state);
 		axisCache = null;
-		if(passedHandlerNeg != null){
-			passedHandlerNeg.invalidate();
-			passedHandlerPos.invalidate();
-		}
+		level.invalidateCapabilities(worldPosition);
+		passedHandlerPos = passedHandlerNeg = null;
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
-		nbt.put("filter", filter.save(new CompoundTag()));
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
+		nbt.put("filter", BlockUtil.stackToNBT(filter, registries));
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
-		filter = ItemStack.of(nbt.getCompound("filter"));
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
+		filter = BlockUtil.nbtToItemStack(nbt.getCompound("filter"), registries);
 		filterItemsCache = null;
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(){
-		CompoundTag nbt = super.getUpdateTag();
-		saveAdditional(nbt);
+	public CompoundTag getUpdateTag(HolderLookup.Provider registries){
+		CompoundTag nbt = super.getUpdateTag(registries);
+		saveAdditional(nbt, registries);
 		return nbt;
 	}
 
 	@Override
 	public void receiveNBT(CompoundTag nbt, @Nullable ServerPlayer sender){
-		filter = ItemStack.of(nbt);
+		filter = BlockUtil.nbtToItemStack(nbt, level.registryAccess());
 		filterItemsCache = null;
 	}
 
@@ -109,12 +108,12 @@ public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
 		}
 
 		if(filterItemsCache == null){
-			if(filter.getItem() instanceof BlockItem && ((BlockItem) filter.getItem()).getBlock() instanceof ShulkerBoxBlock){
-				CompoundTag nbt = filter.getOrCreateTag();
-				NonNullList<ItemStack> nonnulllist = NonNullList.withSize(27, ItemStack.EMPTY);
+			if(filter.getItem() instanceof BundleItem){
+				BundleContents bundleContents = filter.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+				filterItemsCache = bundleContents.itemCopyStream().map(ItemStack::getItem).collect(Collectors.toSet());
+			}else if(filter.getItem() instanceof BlockItem blockItem && blockItem.getBlock() instanceof ShulkerBoxBlock){
 				//Loading the shulker box contents from NBT is slow, so we cache the result
-				ContainerHelper.loadAllItems(nbt.getCompound("BlockEntityTag"), nonnulllist);
-				filterItemsCache = nonnulllist.stream().map(ItemStack::getItem).collect(Collectors.toSet());
+				filterItemsCache = filter.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyStream().map(ItemStack::getItem).collect(Collectors.toSet());
 			}else{
 				filterItemsCache = Set.of(filter.getItem());
 			}
@@ -123,40 +122,26 @@ public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
 		return filterItemsCache.contains(query.getItem());
 	}
 
-	private LazyOptional<IItemHandler> passedHandlerPos = null;
-	private LazyOptional<IItemHandler> passedHandlerNeg = null;
+	private IItemHandler passedHandlerPos = null;
+	private IItemHandler passedHandlerNeg = null;
 
-	private void updatePassedOptionals(){
-		if(passedHandlerPos == null || !passedHandlerPos.isPresent() && passedHandlerNeg == null || !passedHandlerNeg.isPresent()){
-			passedHandlerNeg = LazyOptional.of(() -> new ProxyItemHandler(Direction.get(Direction.AxisDirection.NEGATIVE, getAxis())));
-			passedHandlerPos = LazyOptional.of(() -> new ProxyItemHandler(Direction.get(Direction.AxisDirection.POSITIVE, getAxis())));
-		}
-	}
-
+	@Nullable
 	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		if(passedHandlerNeg != null){
-			passedHandlerNeg.invalidate();
-			passedHandlerPos.invalidate();
+	public IItemHandler getItemHandler(Direction dir){
+		if(dir != null && dir.getAxis() == getAxis()){
+			if(passedHandlerPos == null || passedHandlerNeg == null){
+				passedHandlerNeg = new ProxyItemHandler(Direction.get(Direction.AxisDirection.NEGATIVE, getAxis()));
+				passedHandlerPos = new ProxyItemHandler(Direction.get(Direction.AxisDirection.POSITIVE, getAxis()));
+			}
+			return dir.getAxisDirection() == Direction.AxisDirection.POSITIVE ? passedHandlerPos : passedHandlerNeg;
 		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side){
-		if(cap == ForgeCapabilities.ITEM_HANDLER && side != null && side.getAxis() == getAxis()){
-			updatePassedOptionals();
-			return (LazyOptional<T>) (side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? passedHandlerPos : passedHandlerNeg);
-		}
-
-		return super.getCapability(cap, side);
+		return null;
 	}
 
 	private class ProxyItemHandler implements IItemHandler{
 
 		private final Direction side;
-		private LazyOptional<IItemHandler> src = LazyOptional.empty();
+		private BlockCapabilityCache<IItemHandler, Direction> src;
 
 		private ProxyItemHandler(Direction side){
 			this.side = side;
@@ -164,29 +149,11 @@ public class HopperFilterTileEntity extends BlockEntity implements INBTReceiver{
 
 		@Nullable
 		private IItemHandler getHandler(){
-			if(src.isPresent()){
-				return src.orElseThrow(NullPointerException::new);
-			}else{
+			if(src == null && level instanceof ServerLevel sLevel){
 				BlockPos checkPos = worldPosition.relative(side.getOpposite());
-				BlockEntity checkTE = level.getBlockEntity(checkPos);
-
-				if(checkTE != null){
-					src = checkTE.getCapability(ForgeCapabilities.ITEM_HANDLER, side);
-					if(src.isPresent()){
-						return src.orElseThrow(NullPointerException::new);
-					}
-				}
-
-				BlockState checkState = level.getBlockState(checkPos);
-
-				if(checkState.getBlock() instanceof WorldlyContainerHolder){
-					//As the contract for ISidedInventoryProvider is poorly defined (there being only 1 vanilla example), we can't safely cache the result
-					WorldlyContainer inv = ((WorldlyContainerHolder) checkState.getBlock()).getContainer(checkState, level, checkPos);
-					return new InvWrapper(inv);
-				}
-
-				return null;
+				src = BlockCapabilityCache.create(Capabilities.ItemHandler.BLOCK, sLevel, checkPos, side);
 			}
+			return src.getCapability();
 		}
 
 		@Override

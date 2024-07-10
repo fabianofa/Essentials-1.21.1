@@ -1,43 +1,76 @@
 package com.Da_Technomancer.essentials.api;
 
 import com.Da_Technomancer.essentials.Essentials;
-import com.Da_Technomancer.essentials.api.packets.EssentialsPackets;
-import com.Da_Technomancer.essentials.api.packets.Packet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 
 public class BlockUtil{
 
 	/**
-	 * Gets the value contained in a LazyOptional
-	 * @param optional The LazyOptional
-	 * @param <T> The type parameter of the LazyOptional
-	 * @return The value contained in the LazyOptional, or null if the LazyOptional is empty
-	 */
-	public static <T> T get(@Nullable LazyOptional<T> optional){
-		return optional != null && optional.isPresent() ? optional.orElseThrow(NullPointerException::new) : null;
-	}
-
-	/**
 	 * Sends a packet from the server to the client, to all players 'near' a position
 	 * Only valid for packets on the Essentials channel
 	 * @param world The world to target the packet in
 	 * @param pos The target position the packet reception area is centered around
-	 * @param packet The server->client packet to be send. Essentials channel packets only.
+	 * @param packet The server->client packet to send
 	 */
-	public static void sendClientPacketAround(Level world, BlockPos pos, Packet packet){
-		EssentialsPackets.channel.send(PacketDistributor.NEAR.with(PacketDistributor.TargetPoint.p(pos.getX(), pos.getY(), pos.getZ(), 512, world.dimension())), packet);
+	public static void sendClientPacketAround(Level world, BlockPos pos, CustomPacketPayload packet){
+		PacketDistributor.sendToPlayersNear((ServerLevel) world, null, pos.getX(), pos.getY(), pos.getZ(), 512, packet);
+	}
+
+	public static CompoundTag stackToNBT(ItemStack stack, HolderLookup.Provider registries){
+		return (CompoundTag) stack.saveOptional(registries);
+	}
+
+	public static CompoundTag stackToNBT(FluidStack stack, HolderLookup.Provider registries){
+		return (CompoundTag) stack.saveOptional(registries);
+	}
+
+	public static ItemStack nbtToItemStack(CompoundTag nbt, HolderLookup.Provider registries){
+		return ItemStack.parseOptional(registries, nbt);
+	}
+
+	public static FluidStack nbtToFluidStack(CompoundTag nbt, HolderLookup.Provider registries){
+		return FluidStack.parseOptional(registries, nbt);
+	}
+
+	public static void stackToBuffer(ItemStack stack, FriendlyByteBuf buf, HolderLookup.Provider registries){
+		buf.writeNbt(stackToNBT(stack, registries));
+	}
+
+	public static void stackToBuffer(FluidStack stack, FriendlyByteBuf buf, HolderLookup.Provider registries){
+		buf.writeNbt(stackToNBT(stack, registries));
+	}
+
+	public static ItemStack bufferToItemStack(FriendlyByteBuf buf, HolderLookup.Provider registries){
+		return nbtToItemStack(buf.readNbt(), registries);
+	}
+
+	public static FluidStack bufferToFluidStack(FriendlyByteBuf buf, HolderLookup.Provider registries){
+		return nbtToFluidStack(buf.readNbt(), registries);
+	}
+
+	public static <T extends Comparable<T>> T evaluateProperty(BlockState state, Property<T> prop, T fallback){
+		if(state.hasProperty(prop)){
+			return state.getValue(prop);
+		}
+		return fallback;
 	}
 
 	/**
@@ -49,7 +82,7 @@ public class BlockUtil{
 		if(a == null || b == null){
 			return false;
 		}
-		return ItemStack.isSameItemSameTags(a, b);
+		return ItemStack.isSameItemSameComponents(a, b);
 	}
 
 	/**
@@ -61,7 +94,7 @@ public class BlockUtil{
 		if(a == null || b == null){
 			return false;
 		}
-		return a.getFluid() == b.getFluid() && FluidStack.areFluidStackTagsEqual(a, b);
+		return a.getFluid() == b.getFluid() && FluidStack.isSameFluidSameComponents(a, b);
 	}
 
 	/**
@@ -99,5 +132,9 @@ public class BlockUtil{
 			}
 		}
 		return blockEntities;
+	}
+
+	public static Component blockPosToChatComponent(BlockPos pos){
+		return Component.translatable("tt.essentials.block_pos", pos.getX(), pos.getY(), pos.getZ());
 	}
 }

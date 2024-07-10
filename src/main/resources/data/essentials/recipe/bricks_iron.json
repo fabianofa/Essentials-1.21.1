@@ -1,0 +1,20 @@
+{
+	"type" : "minecraft:crafting_shaped",
+	"result" : {
+		"id" : "essentials:bricks_iron",
+		"count" : 8
+	},
+	"pattern" : [
+		"***",
+		"*I*",
+		"***"
+	],
+	"key" : {
+		"*" : {
+			"tag" : "minecraft:stone_bricks"
+		},
+		"I" : {
+			"tag" : "c:ingots/iron"
+		}
+	}
+}

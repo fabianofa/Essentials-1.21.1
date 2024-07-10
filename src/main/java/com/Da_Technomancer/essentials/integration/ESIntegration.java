@@ -2,7 +2,8 @@ package com.Da_Technomancer.essentials.integration;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import javax.annotation.Nullable;
 
@@ -27,9 +28,12 @@ public class ESIntegration{
 		if(modlist.isLoaded(PATCHOULI_ID)){
 			PatchouliProxy.initBookItem();
 		}
+	}
 
+	public static void initCapabilities(RegisterCapabilitiesEvent e){
+		ModList modlist = ModList.get();
 		if(modlist.isLoaded(COMPUTERCRAFT_ID)){
-			ComputerCraftIntegration.init();
+			ComputerCraftIntegration.registerComputerCapabilities(e);
 		}
 	}
 }

@@ -18,7 +18,7 @@
 		},
 		{
 			"type": "patchouli:text",
-			"text": "into the filter. If a shulker box is used as the filter, the filter will match everything in the shulker box.$(br2)"
+			"text": "into the filter. If a shulker box or bundle is used as the filter, the filter will match everything in the shulker box.$(br2)"
 		},
 		{
 			"type": "patchouli:image",

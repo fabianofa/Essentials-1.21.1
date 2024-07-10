@@ -3,17 +3,20 @@ package com.Da_Technomancer.essentials.blocks;
 import com.Da_Technomancer.essentials.api.ConfigUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.TEBlock;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,7 +27,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public class HopperFilter extends TEBlock{
@@ -33,6 +35,11 @@ public class HopperFilter extends TEBlock{
 		super(ESBlocks.getRockProperty());
 		String name = "hopper_filter";
 		ESBlocks.queueForRegister(name, this);
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.HOPPER_FILTER_TYPE.value();
 	}
 
 	@Override
@@ -46,7 +53,7 @@ public class HopperFilter extends TEBlock{
 //	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.hopper_filter.desc"));
 		tooltip.add(Component.translatable("tt.essentials.hopper_filter.move"));
 		tooltip.add(Component.translatable("tt.essentials.hopper_filter.shulker"));
@@ -83,30 +90,25 @@ public class HopperFilter extends TEBlock{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		if(ConfigUtil.isWrench(playerIn.getItemInHand(hand))){
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult){
+		if(ConfigUtil.isWrench(stack)){
 			if(!worldIn.isClientSide){
-				worldIn.setBlockAndUpdate(pos, state.cycle(ESProperties.AXIS));//MCP note: cycle
+				worldIn.setBlockAndUpdate(pos, state.cycle(ESProperties.AXIS));
 			}
-			return InteractionResult.SUCCESS;
-		}else{
-			BlockEntity te = worldIn.getBlockEntity(pos);
-			if(te instanceof HopperFilterTileEntity){
-				if(!worldIn.isClientSide){
-					HopperFilterTileEntity fte = (HopperFilterTileEntity) te;
-					ItemStack held = playerIn.getItemInHand(hand);
-					if(fte.getFilter().isEmpty() && !held.isEmpty()){
-						fte.setFilter(held.split(1));
-						playerIn.setItemInHand(hand, held);
-					}else if(!fte.getFilter().isEmpty() && held.isEmpty()){
-						playerIn.setItemInHand(hand, fte.getFilter());
-						fte.setFilter(ItemStack.EMPTY);
-					}
+			return ItemInteractionResult.SUCCESS;
+		}else if(worldIn.getBlockEntity(pos) instanceof HopperFilterTileEntity fte){
+			if(!worldIn.isClientSide){
+				if(fte.getFilter().isEmpty() && !stack.isEmpty()){
+					fte.setFilter(stack.split(1));
+					player.setItemInHand(hand, stack);
+				}else if(!fte.getFilter().isEmpty() && stack.isEmpty()){
+					player.setItemInHand(hand, fte.getFilter());
+					fte.setFilter(ItemStack.EMPTY);
 				}
-				return InteractionResult.SUCCESS;
 			}
+			return ItemInteractionResult.sidedSuccess(worldIn.isClientSide);
 		}
-		return InteractionResult.FAIL;
+		return ItemInteractionResult.FAIL;
 	}
 
 	@Override

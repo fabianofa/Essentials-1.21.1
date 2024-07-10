@@ -1,0 +1,20 @@
+{
+	"result" : {
+		"id" : "essentials:item_splitter"
+	},
+	"ingredients" : [
+		{
+			"item" : "essentials:basic_item_splitter"
+		},
+		{
+			"tag" : "c:dusts/redstone"
+		},
+		{
+			"tag" : "c:dusts/redstone"
+		},
+		{
+			"tag" : "c:dusts/redstone"
+		}
+	],
+	"type" : "minecraft:crafting_shapeless"
+}

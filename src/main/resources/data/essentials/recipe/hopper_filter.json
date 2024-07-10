@@ -1,0 +1,22 @@
+{
+	"result" : {
+		"id" : "essentials:hopper_filter"
+	},
+	"pattern" : [
+		"BRB",
+		" G ",
+		"BRB"
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"B" : {
+			"item" : "minecraft:bricks"
+		},
+		"R" : {
+			"tag" : "c:dusts/redstone"
+		},
+		"G" : {
+			"item" : "minecraft:glass"
+		}
+	}
+}

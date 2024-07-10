@@ -1,9 +1,9 @@
 package com.Da_Technomancer.essentials.api.redstone;
 
+import com.Da_Technomancer.essentials.Essentials;
 import net.minecraft.core.Direction;
-import net.minecraftforge.common.util.LazyOptional;
-
-import java.lang.ref.WeakReference;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.capabilities.BlockCapability;
 
 /**
  * Handles circuitry signals for both receiving and emitting.
@@ -12,12 +12,20 @@ import java.lang.ref.WeakReference;
  */
 public interface IRedstoneHandler{
 
+	public static final BlockCapability<IRedstoneHandler, Direction> REDS_HANDLER_BLOCK = BlockCapability.createSided(ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "redstone_handler"), IRedstoneHandler.class);
+
 	/**
 	 * Functioning implementation only required for emitters
 	 *
 	 * @return The current redstone output
 	 */
 	float getOutput();
+
+	/**
+	 * Should be true when this block has unloaded or been removed
+	 * @return Whether this handler should no longer be interacted with or kept in caches
+	 */
+	boolean isInvalid();
 
 	/**
 	 * Finds and adds dependent circuitry (circuits that use the signal from the calling circuit)
@@ -30,7 +38,7 @@ public interface IRedstoneHandler{
 	 * @param fromSide The side this is receiving from
 	 * @param nominalSide The output side of the original calling circuit
 	 */
-	void findDependents(WeakReference<LazyOptional<IRedstoneHandler>> src, int dist, Direction fromSide, Direction nominalSide);
+	void findDependents(IRedstoneHandler src, int dist, Direction fromSide, Direction nominalSide);
 
 	/**
 	 * Finds and adds source circuity (circuits whose output is used by the calling circuit)
@@ -43,7 +51,7 @@ public interface IRedstoneHandler{
 	 * @param toSide The side this is outputting on
 	 * @param nominalSide The input side of the original calling circuit
 	 */
-	void requestSrc(WeakReference<LazyOptional<IRedstoneHandler>> dependency, int dist, Direction toSide, Direction nominalSide);
+	void requestSrc(IRedstoneHandler dependency, int dist, Direction toSide, Direction nominalSide);
 
 	/**
 	 * Adds an external circuit as a source (a circuit whose output this circuit uses)
@@ -53,7 +61,7 @@ public interface IRedstoneHandler{
 	 * @param src The source
 	 * @param fromSide The side this circuit is receiving from
 	 */
-	void addSrc(WeakReference<LazyOptional<IRedstoneHandler>> src, Direction fromSide);
+	void addSrc(IRedstoneHandler src, Direction fromSide);
 
 	/**
 	 * Adds an external circuit as a dependent (a circuit that uses this circuit's output)
@@ -63,7 +71,7 @@ public interface IRedstoneHandler{
 	 * @param dependent The dependent
 	 * @param toSide The side this circuit is outputting on
 	 */
-	void addDependent(WeakReference<LazyOptional<IRedstoneHandler>> dependent, Direction toSide);
+	void addDependent(IRedstoneHandler dependent, Direction toSide);
 
 	/**
 	 * Notifies of a change in the result of a getPower() call on a source
@@ -72,5 +80,5 @@ public interface IRedstoneHandler{
 	 *
 	 * @param src A linked source
 	 */
-	void notifyInputChange(WeakReference<LazyOptional<IRedstoneHandler>> src);
+	void notifyInputChange(IRedstoneHandler src);
 }

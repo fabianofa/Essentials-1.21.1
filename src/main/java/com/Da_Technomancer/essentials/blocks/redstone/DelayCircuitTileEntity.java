@@ -8,6 +8,7 @@ import com.Da_Technomancer.essentials.blocks.ESTileEntity;
 import com.Da_Technomancer.essentials.gui.container.CircuitContainer;
 import com.Da_Technomancer.essentials.gui.container.DelayCircuitContainer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -94,8 +95,8 @@ public class DelayCircuitTileEntity extends CircuitTileEntity implements MenuPro
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		nbt.putInt("setting_d", settingDelay);
 		nbt.putString("setting_s_d", settingStrDelay);
 		nbt.putLong("existed", ticksExisted);
@@ -108,8 +109,8 @@ public class DelayCircuitTileEntity extends CircuitTileEntity implements MenuPro
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		settingDelay = nbt.getInt("setting_d");
 		settingStrDelay = nbt.getString("setting_s_d");
 		ticksExisted = nbt.getLong("existed");

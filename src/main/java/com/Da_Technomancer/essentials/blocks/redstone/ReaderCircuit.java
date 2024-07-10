@@ -3,6 +3,9 @@ package com.Da_Technomancer.essentials.blocks.redstone;
 import com.Da_Technomancer.essentials.api.redstone.IReadable;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.blocks.ESBlocks;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.Direction;
@@ -14,6 +17,11 @@ public class ReaderCircuit extends AbstractCircuit{
 
 	public ReaderCircuit(){
 		super("reader_circuit");
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.READER_CIRCUIT_TYPE.value();
 	}
 
 	@Override

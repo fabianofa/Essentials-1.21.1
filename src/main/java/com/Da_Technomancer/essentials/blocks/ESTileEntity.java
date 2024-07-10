@@ -28,7 +28,6 @@ public class ESTileEntity{
 		toRegister.put("delay_circuit", DelayCircuitTileEntity.TYPE);
 		toRegister.put("wire", WireTileEntity.TYPE);
 		toRegister.put("wire_junction", WireJunctionTileEntity.TYPE);
-		toRegister.put("auto_crafter", AutoCrafterTileEntity.TYPE);
 		toRegister.put("redstone_transmitter", RedstoneTransmitterTileEntity.TYPE);
 		toRegister.put("redstone_receiver", RedstoneReceiverTileEntity.TYPE);
 		toRegister.put("pulse_circuit", PulseCircuitTileEntity.TYPE);

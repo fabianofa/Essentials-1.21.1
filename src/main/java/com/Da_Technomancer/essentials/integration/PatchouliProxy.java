@@ -22,7 +22,8 @@ public class PatchouliProxy{
 				ItemStack stack = new ItemStack(ESIntegration.bookItem);
 				CompoundTag cmp = new CompoundTag();
 				cmp.putString("patchouli:book", book.id.toString());
-				stack.setTag(cmp);
+//				TODO replace w/ DataComponent when Patchouli updates
+//				stack.setTag(cmp);
 				return stack;
 			}
 		};

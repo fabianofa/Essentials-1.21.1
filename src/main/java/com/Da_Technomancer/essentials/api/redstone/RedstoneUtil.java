@@ -6,16 +6,14 @@ import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.items.CircuitWrench;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.capabilities.CapabilityToken;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.capabilities.BlockCapability;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,7 +25,7 @@ import java.util.Map;
 @ParametersAreNonnullByDefault
 public class RedstoneUtil extends BlockUtil{
 
-	public static final Capability<IRedstoneHandler> REDSTONE_CAPABILITY = CapabilityManager.get(new CapabilityToken<>(){});
+	public static final BlockCapability<IRedstoneHandler, Direction> REDSTONE_CAPABILITY = IRedstoneHandler.REDS_HANDLER_BLOCK;
 
 	/**
 	 * Allows other mods to support being read by a reader circuit without a hard dependency on Essentials
@@ -48,7 +46,7 @@ public class RedstoneUtil extends BlockUtil{
 	public static final int DELAY = 2;
 
 	public static void registerReadable(Block block, IReadable readable){
-		ResourceLocation blockRegName = ForgeRegistries.BLOCKS.getKey(block);
+		ResourceLocation blockRegName = BuiltInRegistries.BLOCK.getKey(block);
 		if(!READABLES.containsKey(blockRegName) && !(block instanceof IReadable)){
 			READABLES.put(blockRegName, readable);
 		}else{
@@ -66,7 +64,7 @@ public class RedstoneUtil extends BlockUtil{
 			CircuitWrench.MODES.add(toRegister);
 			CircuitWrench.ICONS.add(icon);
 		}else{
-			Essentials.logger.warn("Redundant circuit registration: " + ForgeRegistries.BLOCKS.getKey(toRegister.wireAsBlock()));
+			Essentials.logger.warn("Redundant circuit registration: " + BuiltInRegistries.BLOCK.getKey(toRegister.wireAsBlock()));
 		}
 	}
 
@@ -75,7 +73,7 @@ public class RedstoneUtil extends BlockUtil{
 		if(block instanceof IReadable){
 			return ((IReadable) block);
 		}else{
-			return READABLES.get(ForgeRegistries.BLOCKS.getKey(block)); //Return an IReadable handler from the registry instead.
+			return READABLES.get(BuiltInRegistries.BLOCK.getKey(block)); //Return an IReadable handler from the registry instead.
 		}
 	}
 
@@ -240,16 +238,16 @@ public class RedstoneUtil extends BlockUtil{
 					switch((char) o){
 						case '(':
 							openParens++;
-							numberFromLeft = true;//Block in parenthesis can be interpreted as a number
+							numberFromLeft = true;//Block in parentheses can be interpreted as a number
 							break;
 						case ')':
 							if(openParens == 0){
-								//More close parens then open parens
+								//More close parens than open parens
 								working = false;
 								break abort;
 							}else{
 								openParens--;
-								numberFromRight = true;//Block in parenthesis can be interpreted as a number
+								numberFromRight = true;//Block in parentheses can be interpreted as a number
 							}
 							break;
 						case '*':
@@ -340,7 +338,7 @@ public class RedstoneUtil extends BlockUtil{
 	 * @return The evaluated value, or 0 if it was unable to evaluate the formula.
 	 */
 	private static float operate(ArrayList<Object> formula){
-		if(formula.size() == 0){
+		if(formula.isEmpty()){
 			return 0;
 		}
 

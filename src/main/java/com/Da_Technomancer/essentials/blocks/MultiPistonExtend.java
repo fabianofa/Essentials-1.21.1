@@ -1,6 +1,9 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ESProperties;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Containers;
@@ -8,6 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -24,7 +28,13 @@ import javax.annotation.Nullable;
 
 public class MultiPistonExtend extends Block{
 
+	public static final MapCodec<MultiPistonExtend> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(Codec.BOOL.fieldOf("sticky").forGetter(MultiPistonExtend::isSticky)).apply(instance, MultiPistonExtend::new));
+
 	private final boolean sticky;
+
+	private boolean isSticky(){
+		return sticky;
+	}
 
 	protected MultiPistonExtend(boolean sticky){
 		super(Properties.of().mapColor(MapColor.STONE).strength(0.5F));
@@ -32,6 +42,11 @@ public class MultiPistonExtend extends Block{
 		String name = "multi_piston_extend" + (sticky ? "_sticky" : "");
 		registerDefaultState(defaultBlockState().setValue(ESProperties.AXIS, Direction.Axis.Y).setValue(ESProperties.HEAD, 0));
 		ESBlocks.queueForRegister(name, this, false);
+	}
+
+	@Override
+	protected MapCodec<? extends Block> codec(){
+		return ESBlocks.MULTI_PISTON_EXTEND_TYPE.value();
 	}
 
 	@Nullable
@@ -97,7 +112,7 @@ public class MultiPistonExtend extends Block{
 	}
 
 	@Override
-	public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter world, BlockPos pos, Player player){
+	public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader world, BlockPos pos, Player player){
 		return sticky ? new ItemStack(ESBlocks.multiPistonSticky, 1) : new ItemStack(ESBlocks.multiPiston, 1);
 	}
 }

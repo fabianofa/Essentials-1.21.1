@@ -1,0 +1,19 @@
+{
+	"result" : {
+		"id" : "essentials:wire_circuit",
+		"count" : 2
+	},
+	"pattern" : [
+		"RRR",
+		"SSS"
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"S" : {
+			"item" : "minecraft:smooth_stone"
+		},
+		"R" : {
+			"tag" : "c:dusts/redstone"
+		}
+	}
+}

@@ -8,7 +8,7 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.ToolAction;
+import net.neoforged.neoforge.common.ItemAbility;
 
 import javax.annotation.Nullable;
 import java.text.DecimalFormat;
@@ -20,8 +20,8 @@ public class ConfigUtil{
 	 */
 	public static final Style TT_QUIP = Style.EMPTY.applyFormat(ChatFormatting.AQUA).withItalic(true);
 
-	public static final ToolAction WRENCH_ACTION = ToolAction.get("wrench");//No single standard for wrench tool action name has emerged yet
-	private static final TagKey<Item> WRENCH = ItemTags.create(new ResourceLocation("forge:tools/wrench"));
+	public static final ItemAbility WRENCH_ACTION = ItemAbility.get("wrench");//No single standard for wrench tool action name has emerged yet
+	private static final TagKey<Item> WRENCH = ItemTags.create(ResourceLocation.fromNamespaceAndPath("c", "tools/wrench"));
 
 	/**
 	 * @param stack The stack to test

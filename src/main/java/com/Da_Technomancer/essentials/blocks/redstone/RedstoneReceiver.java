@@ -1,15 +1,15 @@
 package com.Da_Technomancer.essentials.blocks.redstone;
 
+import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.api.LinkHelper;
 import com.Da_Technomancer.essentials.api.redstone.IWireConnect;
 import com.Da_Technomancer.essentials.blocks.ESBlocks;
-import com.Da_Technomancer.essentials.api.ESProperties;
-import com.Da_Technomancer.essentials.api.ILinkTE;
-import com.Da_Technomancer.essentials.api.LinkHelper;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
@@ -36,26 +36,29 @@ public class RedstoneReceiver extends BaseEntityBlock implements IWireConnect{
 	}
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
-		ItemStack heldItem = playerIn.getItemInHand(hand);
-		BlockEntity te = worldIn.getBlockEntity(pos);
-		Item dye;
-		if(LinkHelper.isLinkTool(heldItem) && te instanceof RedstoneReceiverTileEntity){
-			if(!worldIn.isClientSide){
-				LinkHelper.wrench((ILinkTE) te, heldItem, playerIn);
-			}
-			return InteractionResult.SUCCESS;
-		}else if((dye = heldItem.getItem()) instanceof DyeItem && te instanceof RedstoneReceiverTileEntity){
-			if(!worldIn.isClientSide){
-				((RedstoneReceiverTileEntity) te).dye(((DyeItem) dye).getDyeColor());
-			}
-			return InteractionResult.SUCCESS;
-		}
-		return InteractionResult.PASS;
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.REDSTONE_RECEIVER_TYPE.value();
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult hit){
+		BlockEntity te = worldIn.getBlockEntity(pos);
+		if(LinkHelper.isLinkTool(heldItem) && te instanceof RedstoneReceiverTileEntity linkTE){
+			if(!worldIn.isClientSide){
+				LinkHelper.wrench(linkTE, heldItem, playerIn);
+			}
+			return ItemInteractionResult.sidedSuccess(worldIn.isClientSide);
+		}else if(heldItem.getItem() instanceof DyeItem dye && te instanceof RedstoneReceiverTileEntity linkTE){
+			if(!worldIn.isClientSide){
+				linkTE.dye(dye.getDyeColor());
+			}
+			return ItemInteractionResult.sidedSuccess(worldIn.isClientSide);
+		}
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+	}
+
+	@Override
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.reds_rec.desc"));
 		tooltip.add(Component.translatable("tt.essentials.reds_rec.linking"));
 		tooltip.add(Component.translatable("tt.essentials.reds_rec.dyes"));

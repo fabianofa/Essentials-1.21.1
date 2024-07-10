@@ -1,0 +1,25 @@
+{
+	"neoforge:conditions": [
+		{
+			"type": "neoforge:mod_loaded",
+			"modid": "patchouli"
+		}
+	],
+	"type" : "minecraft:crafting_shapeless",
+	"result" : {
+		"id" : "essentials:guide_book",
+		"nbt" : {
+			"patchouli:book" : "essentials:manual"
+		},
+		"count" : 1
+	},
+	"ingredients" : [
+		{
+			"item" : "minecraft:book"
+		},
+		{
+			"tag" : "c:nuggets/iron"
+		}
+	]
+}
+}

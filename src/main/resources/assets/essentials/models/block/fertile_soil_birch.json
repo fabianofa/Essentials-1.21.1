@@ -1,6 +1,0 @@
-{
-	"parent": "block/cube_all",
-	"textures": {
-		"all": "essentials:block/fertile_soil_birch"
-	}
-}

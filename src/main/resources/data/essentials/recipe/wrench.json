@@ -1,0 +1,19 @@
+{
+	"result" : {
+		"id" : "essentials:wrench"
+	},
+	"pattern" : [
+		"* *",
+		"*|*",
+		" | "
+	],
+	"type" : "minecraft:crafting_shaped",
+	"key" : {
+		"*" : {
+			"tag" : "c:ingots/iron"
+		},
+		"|" : {
+			"tag" : "c:rods/wooden"
+		}
+	}
+}

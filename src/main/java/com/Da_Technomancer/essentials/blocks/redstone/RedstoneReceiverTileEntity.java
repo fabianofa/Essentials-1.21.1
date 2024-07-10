@@ -3,12 +3,14 @@ package com.Da_Technomancer.essentials.blocks.redstone;
 import com.Da_Technomancer.essentials.ESConfig;
 import com.Da_Technomancer.essentials.api.ESProperties;
 import com.Da_Technomancer.essentials.api.ILinkTE;
+import com.Da_Technomancer.essentials.api.redstone.IRedstoneCapable;
 import com.Da_Technomancer.essentials.api.redstone.IRedstoneHandler;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
 import com.Da_Technomancer.essentials.blocks.ESBlocks;
 import com.Da_Technomancer.essentials.blocks.ESTileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -16,18 +18,14 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.redstoneReceiver;
 
-public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
+public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE, IRedstoneCapable{
 
 	private BlockPos src = null;
 
@@ -88,8 +86,8 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 			if(src != null){
 				BlockPos worldSrc = worldPosition.offset(src);
 				BlockEntity srcTE = level.getBlockEntity(worldSrc);
-				if(srcTE instanceof RedstoneTransmitterTileEntity){
-					((RedstoneTransmitterTileEntity) srcTE).dye(color);
+				if(srcTE instanceof RedstoneTransmitterTileEntity transmitterTE){
+					transmitterTE.dye(color);
 				}
 			}
 		}
@@ -99,16 +97,15 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 		//Notify dependents and/or neighbors that getPower output has changed
 		level.updateNeighborsAt(worldPosition, ESBlocks.redstoneReceiver);
 		for(int i = 0; i < dependents.size(); i++){
-			WeakReference<LazyOptional<IRedstoneHandler>> depend = dependents.get(i);
-			LazyOptional<IRedstoneHandler> optional;
+			IRedstoneHandler depend = dependents.get(i);
 			//Validate dependent
-			if(depend == null || (optional = depend.get()) == null || !optional.isPresent()){
+			if(depend == null || depend.isInvalid()){
 				dependents.remove(i);
 				i--;
 				continue;
 			}
 			//Notify the dependent of a change
-			optional.orElseThrow(NullPointerException::new).notifyInputChange(circRef);
+			depend.notifyInputChange(circRef);
 		}
 	}
 
@@ -118,10 +115,8 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 
 		//Check in all 6 directions because this block outputs in every direction
 		for(Direction dir : Direction.values()){
-			BlockEntity te = level.getBlockEntity(worldPosition.relative(dir));
-			LazyOptional<IRedstoneHandler> otherOpt;
-			if(te != null && (otherOpt = te.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, dir.getOpposite())).isPresent()){
-				IRedstoneHandler otherHandler = otherOpt.orElseThrow(NullPointerException::new);
+			IRedstoneHandler otherHandler = level.getCapability(RedstoneUtil.REDSTONE_CAPABILITY, worldPosition.relative(dir), dir.getOpposite());
+			if(otherHandler != null){
 				otherHandler.findDependents(circRef, 0, dir.getOpposite(), dir);
 			}
 		}
@@ -130,24 +125,24 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 	public float getPower(){
 		if(src != null){
 			BlockEntity te = level.getBlockEntity(worldPosition.offset(src));
-			if(te instanceof RedstoneTransmitterTileEntity){
-				return ((RedstoneTransmitterTileEntity) te).getOutput();
+			if(te instanceof RedstoneTransmitterTileEntity transmitterTE){
+				return transmitterTE.getOutput();
 			}
 		}
 		return 0;
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		if(nbt.contains("src")){
 			src = BlockPos.of(nbt.getLong("src"));
 		}
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 		if(src != null){
 			nbt.putLong("src", src.asLong());
 		}
@@ -179,27 +174,21 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 		return ESConfig.wirelessRange.get();
 	}
 
-	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		circOpt.invalidate();
-	}
+	private IRedstoneHandler circRef = new CircHandler();
+	private final ArrayList<IRedstoneHandler> dependents = new ArrayList<>(1);
 
-	private LazyOptional<IRedstoneHandler> circOpt = LazyOptional.of(CircHandler::new);
-	private WeakReference<LazyOptional<IRedstoneHandler>> circRef = new WeakReference<>(circOpt);
-	private final ArrayList<WeakReference<LazyOptional<IRedstoneHandler>>> dependents = new ArrayList<>(1);
-
-	@Nonnull
+	@Nullable
 	@Override
-	@SuppressWarnings("unchecked")
-	public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side){
-		if(cap == RedstoneUtil.REDSTONE_CAPABILITY){
-			return (LazyOptional<T>) circOpt;
-		}
-		return super.getCapability(cap, side);
+	public IRedstoneHandler getRedstoneHandler(Direction dir){
+		return circRef;
 	}
 
 	private class CircHandler implements IRedstoneHandler{
+
+		@Override
+		public boolean isInvalid(){
+			return isRemoved();
+		}
 
 		@Override
 		public float getOutput(){
@@ -207,16 +196,14 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 		}
 
 		@Override
-		public void findDependents(WeakReference<LazyOptional<IRedstoneHandler>> src, int dist, Direction fromSide, Direction nominalSide){
+		public void findDependents(IRedstoneHandler src, int dist, Direction fromSide, Direction nominalSide){
 			//No-Op
 		}
 
 		@Override
-		public void requestSrc(WeakReference<LazyOptional<IRedstoneHandler>> dependency, int dist, Direction toSide, Direction nominalSide){
-			LazyOptional<IRedstoneHandler> depenOption;
-			if((depenOption = dependency.get()) != null && depenOption.isPresent()){
-				IRedstoneHandler depHandler = depenOption.orElseThrow(NullPointerException::new);
-				depHandler.addSrc(circRef, nominalSide);
+		public void requestSrc(IRedstoneHandler dependency, int dist, Direction toSide, Direction nominalSide){
+			if(dependency != null && !dependency.isInvalid()){
+				dependency.addSrc(circRef, nominalSide);
 				if(!dependents.contains(dependency)){
 					dependents.add(dependency);
 				}
@@ -224,19 +211,19 @@ public class RedstoneReceiverTileEntity extends BlockEntity implements ILinkTE{
 		}
 
 		@Override
-		public void addSrc(WeakReference<LazyOptional<IRedstoneHandler>> src, Direction fromSide){
+		public void addSrc(IRedstoneHandler src, Direction fromSide){
 			//No-Op
 		}
 
 		@Override
-		public void addDependent(WeakReference<LazyOptional<IRedstoneHandler>> dependent, Direction toSide){
+		public void addDependent(IRedstoneHandler dependent, Direction toSide){
 			if(!dependents.contains(dependent)){
 				dependents.add(dependent);
 			}
 		}
 
 		@Override
-		public void notifyInputChange(WeakReference<LazyOptional<IRedstoneHandler>> src){
+		public void notifyInputChange(IRedstoneHandler src){
 			//No-Op
 		}
 	}

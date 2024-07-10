@@ -2,12 +2,14 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import com.Da_Technomancer.essentials.api.redstone.RedstoneUtil;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -21,6 +23,11 @@ public class FluidSplitter extends BasicFluidSplitter{
 
 	public FluidSplitter(){
 		super("fluid_splitter", ESBlocks.getMetalProperty());
+	}
+
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec(){
+		return ESBlocks.FLUID_SPLITTER_TYPE.value();
 	}
 
 	@Override
@@ -38,14 +45,14 @@ public class FluidSplitter extends BasicFluidSplitter{
 		super.neighborChanged(state, worldIn, pos, blockIn, fromPos, flag);
 		int i = RedstoneUtil.getRedstoneAtPos(worldIn, pos);
 		BlockEntity te = worldIn.getBlockEntity(pos);
-		if(te instanceof FluidSplitterTileEntity && ((FluidSplitterTileEntity) te).redstone != i){
-			((FluidSplitterTileEntity) te).redstone = i;
+		if(te instanceof FluidSplitterTileEntity splitter && splitter.redstone != i){
+			splitter.redstone = i;
 			te.setChanged();
 		}
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable BlockGetter world, List<Component> tooltip, TooltipFlag advanced){
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag advanced){
 		tooltip.add(Component.translatable("tt.essentials.fluid_splitter_basic"));
 		tooltip.add(Component.translatable("tt.essentials.fluid_splitter_formula"));
 		tooltip.add(Component.translatable("tt.essentials.fluid_splitter_chute"));

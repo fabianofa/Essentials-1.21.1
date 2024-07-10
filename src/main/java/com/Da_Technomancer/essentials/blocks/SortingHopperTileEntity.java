@@ -1,15 +1,16 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.WorldlyContainer;
-import net.minecraft.world.WorldlyContainerHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -24,26 +25,27 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.sortingHopper;
 
-public class SortingHopperTileEntity extends BlockEntity implements ITickableTileEntity, Container, MenuProvider{
+public class SortingHopperTileEntity extends BlockEntity implements ITickableTileEntity, Container, MenuProvider, IItemCapable{
 
 	public static final BlockEntityType<SortingHopperTileEntity> TYPE = ESTileEntity.createType(SortingHopperTileEntity::new, sortingHopper);
 
 	protected final ItemStack[] inventory = new ItemStack[5];
 	private int transferCooldown = -1;
-	private Direction dir = null;
+	private BlockCapabilityCache<IItemHandler, Direction> inputCache;
+	private BlockCapabilityCache<IItemHandler, Direction> outputCache;
 
 	protected SortingHopperTileEntity(BlockEntityType<?> type, BlockPos pos, BlockState state){
 		super(type, pos, state);
@@ -57,18 +59,48 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 	}
 
 	public void resetCache(){
-		dir = null;
+		level.invalidateCapabilities(worldPosition);
+		outputCache = null;
 	}
 
-	protected Direction getDir(){
-		if(dir == null){
-			BlockState state = getBlockState();
-			if(!(state.getBlock() instanceof SortingHopper)){
-				return Direction.DOWN;
-			}
-			dir = state.getValue(SortingHopper.FACING);
+	private IItemHandler getOutputHandler(){
+		if(outputCache == null){
+			outputCache = BlockCapabilityCache.create(Capabilities.ItemHandler.BLOCK, (ServerLevel) level, worldPosition.relative(getBlockState().getValue(SortingHopper.FACING)), getBlockState().getValue(SortingHopper.FACING).getOpposite());
 		}
-		return dir;
+		IItemHandler result = outputCache.getCapability();
+		if(result == null){
+			Direction dir = getBlockState().getValue(SortingHopper.FACING);
+			result = getEntityItemHandlerAtPosition(level, worldPosition.relative(dir), dir.getOpposite());
+		}
+		return result;
+	}
+
+	private IItemHandler getInputHandler(){
+		if(inputCache == null){
+			inputCache = BlockCapabilityCache.create(Capabilities.ItemHandler.BLOCK, (ServerLevel) level, worldPosition.above(), Direction.DOWN);
+		}
+		IItemHandler result = inputCache.getCapability();
+		if(result == null){
+			result = getEntityItemHandlerAtPosition(level, worldPosition.below(), Direction.UP);
+		}
+		return result;
+	}
+
+	private static IItemHandler getEntityItemHandlerAtPosition(Level world, BlockPos otherPos, Direction side){
+		List<Entity> list = world.getEntities((Entity) null, new AABB(otherPos), EntitySelector.ENTITY_STILL_ALIVE);
+		if(!list.isEmpty()){
+			Collections.shuffle(list);
+			Iterator<Entity> entityIter = list.iterator();
+
+			while(entityIter.hasNext()){
+				Entity entity = entityIter.next();
+				IItemHandler entityCap = entity.getCapability(Capabilities.ItemHandler.ENTITY_AUTOMATION, side);
+				if(entityCap != null){
+					return entityCap;
+				}
+			}
+		}
+		return null;
 	}
 
 	@Override
@@ -96,25 +128,23 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 		transferCooldown = nbt.getInt("trans_cooldown");
 
 		for(int i = 0; i < 5; i++){
 			CompoundTag stackNBT = nbt.getCompound("inv_" + i);
-			inventory[i] = ItemStack.of(stackNBT);
+			inventory[i] = BlockUtil.nbtToItemStack(stackNBT, registries);
 		}
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
 
 		for(int i = 0; i < 5; i++){
 			if(!inventory[i].isEmpty()){
-				CompoundTag stackNBT = new CompoundTag();
-				inventory[i].save(stackNBT);
-				nbt.put("inv_" + i, stackNBT);
+				nbt.put("inv_" + i, BlockUtil.stackToNBT(inventory[i], registries));
 			}
 		}
 
@@ -240,8 +270,7 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 	}
 
 	protected boolean transferItemsOut(){
-		Direction facing = getDir();
-		final IItemHandler otherHandler = getHandlerAtPosition(level, worldPosition.relative(facing), facing.getOpposite(), null);
+		final IItemHandler otherHandler = getOutputHandler();
 
 		//Insertion via IItemHandler
 		if(otherHandler != null){
@@ -272,9 +301,7 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 	}
 
 	protected boolean transferItemsIn(){
-		BlockPos upPos = worldPosition.above();
-		BlockEntity aboveTE = level.getBlockEntity(upPos);
-		final IItemHandler otherHandler = getHandlerAtPosition(level, upPos, Direction.DOWN, aboveTE);
+		final IItemHandler otherHandler = getInputHandler();
 
 		//Transfer from IItemHandler
 		if(otherHandler != null){
@@ -293,14 +320,15 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 
 			return false;
 		}else{
+			BlockEntity aboveTE = level.getBlockEntity(worldPosition.above());
 			boolean changed = false;
 
 			//Suck up dropped items
 			List<ItemEntity> itemEntities;
 
 			//If the block above is a Hopper Filter, we can pick up items through the filter, but only if they match the filter
-			if(aboveTE instanceof HopperFilterTileEntity){
-				itemEntities = level.getEntitiesOfClass(ItemEntity.class, new AABB(worldPosition.getX(), worldPosition.getY() + 0.5D, worldPosition.getZ(), worldPosition.getX() + 1, worldPosition.getY() + 3D, worldPosition.getZ() + 1), entity -> entity.isAlive() && ((HopperFilterTileEntity) aboveTE).matchFilter(entity.getItem()));
+			if(aboveTE instanceof HopperFilterTileEntity filterTE){
+				itemEntities = level.getEntitiesOfClass(ItemEntity.class, new AABB(worldPosition.getX(), worldPosition.getY() + 0.5D, worldPosition.getZ(), worldPosition.getX() + 1, worldPosition.getY() + 3D, worldPosition.getZ() + 1), entity -> entity.isAlive() && filterTE.matchFilter(entity.getItem()));
 			}else{
 				itemEntities = level.getEntitiesOfClass(ItemEntity.class, new AABB(worldPosition.getX(), worldPosition.getY() + 0.5D, worldPosition.getZ(), worldPosition.getX() + 1, worldPosition.getY() + 2D, worldPosition.getZ() + 1), EntitySelector.ENTITY_STILL_ALIVE);
 			}
@@ -332,35 +360,6 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 		}
 	}
 
-	public static IItemHandler getHandlerAtPosition(Level world, BlockPos otherPos, Direction direction, @Nullable BlockEntity cacheTE){
-		final BlockEntity te = cacheTE == null ? world.getBlockEntity(otherPos) : cacheTE;
-
-		if(te != null){
-			final LazyOptional<IItemHandler> capability = te.getCapability(ForgeCapabilities.ITEM_HANDLER, direction);
-			if(capability.isPresent()){
-				IItemHandler handler = capability.orElseThrow(NullPointerException::new);
-				//This slot count check enables sorting hoppers to pull items from the world through a hopper filter when there is no inventory on the other side
-				if(handler.getSlots() > 0){
-					return handler;
-				}
-			}
-		}
-
-		//In vanilla, this is literally just composters
-		BlockState state = world.getBlockState(otherPos);
-		if(state.getBlock() instanceof WorldlyContainerHolder){
-			WorldlyContainer inv = ((WorldlyContainerHolder) state.getBlock()).getContainer(state, world, otherPos);
-			return new WorldlyInvWrapper(inv, direction);
-		}
-
-		List<Entity> list = world.getEntities((Entity) null, new AABB(otherPos), EntitySelector.CONTAINER_ENTITY_SELECTOR);
-		if(!list.isEmpty()){
-			return new InvWrapper((Container) list.get(world.random.nextInt(list.size())));
-		}
-
-		return null;
-	}
-
 	protected static boolean canCombine(ItemStack stack1, ItemStack stack2){
 		return BlockUtil.sameItem(stack1, stack2) && stack1.getCount() <= stack1.getMaxStackSize();
 	}
@@ -375,13 +374,10 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 
 	protected ItemHandler handler = new ItemHandler();
 
+	@Nullable
 	@Override
-	@SuppressWarnings("unchecked")
-	public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable Direction facing){
-		if(capability == ForgeCapabilities.ITEM_HANDLER){
-			return LazyOptional.of(() -> (T) handler);
-		}
-		return super.getCapability(capability, facing);
+	public IItemHandler getItemHandler(Direction dir){
+		return handler;
 	}
 
 	@Override
@@ -445,16 +441,12 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 				return ItemStack.EMPTY;
 			}
 
-			Direction facing = getDir();
-
-			BlockEntity te = level.getBlockEntity(worldPosition.relative(facing));
-			LazyOptional<IItemHandler> otherCap;
-			if(te != null && (otherCap = te.getCapability(ForgeCapabilities.ITEM_HANDLER, facing.getOpposite())).isPresent()){
-				IItemHandler otherHandler = otherCap.orElseThrow(NullPointerException::new);
+			IItemHandler otherHandler = getOutputHandler();
+			if(otherHandler != null){
 				int slots = otherHandler.getSlots();
 				for(int i = 0; i < slots; i++){
 					if(otherHandler.insertItem(i, inventory[slot], true).getCount() < inventory[slot].getCount()){
-						return ItemStack.EMPTY;//Tbe special feature of the sorting hopper is that items can't be drawn from it unless the sorting hopper wouldn't be able to export it.
+						return ItemStack.EMPTY;//The special feature of the sorting hopper is that items can't be drawn from it unless the sorting hopper wouldn't be able to export it.
 					}
 				}
 			}
@@ -479,39 +471,6 @@ public class SortingHopperTileEntity extends BlockEntity implements ITickableTil
 		@Override
 		public boolean isItemValid(int slot, @Nonnull ItemStack stack){
 			return true;
-		}
-	}
-
-	/**
-	 * A version of InvWrapper which can handle the special requirements of WorldlyContainers in addition to still handling regular Containers
-	 */
-	private static class WorldlyInvWrapper extends InvWrapper{
-
-		//Because WorldlyContainer adds extra methods to control item movement, we need to adjust the wrapper to use them
-
-		private final Direction direction;
-
-		public WorldlyInvWrapper(Container inv, Direction accessDirection){
-			super(inv);
-			this.direction = accessDirection;
-		}
-
-		@Nonnull
-		@Override
-		public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate){
-			if(getInv() instanceof WorldlyContainer wInv && !wInv.canPlaceItemThroughFace(slot, stack, direction)){
-				return stack;
-			}
-			return super.insertItem(slot, stack, simulate);
-		}
-
-		@Nonnull
-		@Override
-		public ItemStack extractItem(int slot, int amount, boolean simulate){
-			if(getInv() instanceof WorldlyContainer wInv && !wInv.canTakeItemThroughFace(slot, wInv.getItem(slot), direction)){
-				return ItemStack.EMPTY;
-			}
-			return super.extractItem(slot, amount, simulate);
 		}
 	}
 }

@@ -1,18 +1,12 @@
 package com.Da_Technomancer.essentials.gui.container;
 
-import com.Da_Technomancer.essentials.Essentials;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.registries.ObjectHolder;
+import net.minecraft.world.entity.player.Inventory;
 
 public class TimerCircuitContainer extends CircuitContainer{
 
-	@ObjectHolder(registryName="menu", value=Essentials.MODID + ":timer_circuit")
-	private static MenuType<TimerCircuitContainer> TYPE = null;
-
 	public TimerCircuitContainer(int id, Inventory playerInventory, FriendlyByteBuf data){
-		super(TYPE, id, playerInventory, data);
+		super(ESContainers.TIMER_CIRCUIT_CONTAINER.get(), id, playerInventory, data);
 	}
 
 	@Override

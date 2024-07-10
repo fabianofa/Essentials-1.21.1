@@ -1,46 +1,26 @@
-# Directories
-/.gradle/
-/.idea/
-/.metadata/
-/.vscode/
-/build/
-/eclipse
-/run/
-/out/
-/asm/
-/bin/
-/build/
-/config/
-crash-reports/
-/libs/
-/saves/
-/resourcepacks/
-/logs/
-/mods/
-/screenshots/
-/classes/
-/net/
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
 
-# File Extensions
-*.psd
-*.iml
+# idea
+out
 *.ipr
 *.iws
-*.classpath
-*.project
-*.launch
-*.class
+*.iml
+.idea
 
-# Specific files
-Thumbs.db
-usernamecache.json
-options.txt
-MinecraftForge-License.txt
-MinecraftForge-Credits.txt
-Paulscode*
-README.txt
-LICENSE-fml.txt
-CREDITS-fml.txt
-usercache.json
-Essentials.eml
-.settings/org.eclipse.jdt.core.prefs
+# gradle
+build
+.gradle
+
+# other
+eclipse
+run
+runs
+run-data
+
+repo

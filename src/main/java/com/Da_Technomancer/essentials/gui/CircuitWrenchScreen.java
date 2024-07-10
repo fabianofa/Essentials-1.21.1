@@ -2,11 +2,9 @@ package com.Da_Technomancer.essentials.gui;
 
 import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.api.packets.ConfigureWrenchOnServer;
-import com.Da_Technomancer.essentials.api.packets.EssentialsPackets;
 import com.Da_Technomancer.essentials.api.redstone.IWireConnect;
 import com.Da_Technomancer.essentials.gui.container.CircuitWrenchContainer;
 import com.Da_Technomancer.essentials.items.CircuitWrench;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,14 +17,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 
 public class CircuitWrenchScreen extends AbstractContainerScreen<CircuitWrenchContainer>{
 
-	private static final ResourceLocation SEARCH_BAR_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/search_bar.png");
-	private static final ResourceLocation ROW_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/row.png");
-	private static final ResourceLocation MISSING_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/circuit/missing.png");
+	private static final ResourceLocation SEARCH_BAR_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/search_bar.png");
+	private static final ResourceLocation ROW_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/row.png");
+	private static final ResourceLocation MISSING_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/circuit/missing.png");
 	private static final int ROWS = 8;
 	private static final int COLUMNS = 8;
 
@@ -99,7 +98,7 @@ public class CircuitWrenchScreen extends AbstractContainerScreen<CircuitWrenchCo
 
 	@Override
 	public void render(GuiGraphics matrix, int mouseX, int mouseY, float partialTicks){
-		renderBackground(matrix);
+		renderBackground(matrix, mouseX, mouseY, partialTicks);
 		super.render(matrix, mouseX, mouseY, partialTicks);
 
 		//Tooltip
@@ -129,7 +128,7 @@ public class CircuitWrenchScreen extends AbstractContainerScreen<CircuitWrenchCo
 		}
 	}
 
-	public static final Style CIRCUIT_WRENCH_STYLE = Style.EMPTY.applyFormat(ChatFormatting.DARK_RED);
+	public static final Style CIRCUIT_WRENCH_STYLE = Style.EMPTY.applyFormat(ChatFormatting.RED);
 
 	@Override
 	public boolean mouseClicked(double xPos, double yPos, int button){
@@ -145,7 +144,7 @@ public class CircuitWrenchScreen extends AbstractContainerScreen<CircuitWrenchCo
 			return super.mouseClicked(xPos, yPos, button);
 		}
 
-		EssentialsPackets.channel.sendToServer(new ConfigureWrenchOnServer(index));
+		PacketDistributor.sendToServer(new ConfigureWrenchOnServer(index));
 		minecraft.player.closeContainer();
 		minecraft.player.displayClientMessage(Component.translatable("tt.essentials.circuit_wrench_setting").setStyle(CIRCUIT_WRENCH_STYLE).append(Component.translatable(CircuitWrench.MODES.get(index).wireAsBlock().getDescriptionId())), true);//MCP note: setStyle, appendSibling
 

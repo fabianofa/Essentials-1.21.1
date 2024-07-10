@@ -2,7 +2,6 @@ package com.Da_Technomancer.essentials.gui;
 
 import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.gui.container.ItemShifterContainer;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -11,7 +10,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 public class ItemShifterScreen extends AbstractContainerScreen<ItemShifterContainer>{
 
-	private static final ResourceLocation GUI_TEXTURE = new ResourceLocation(Essentials.MODID, "textures/gui/item_shifter.png");
+	private static final ResourceLocation GUI_TEXTURE = ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "textures/gui/item_shifter.png");
 
 	public ItemShifterScreen(ItemShifterContainer cont, Inventory playerInventory, Component text){
 		super(cont, playerInventory, text);
@@ -19,7 +18,7 @@ public class ItemShifterScreen extends AbstractContainerScreen<ItemShifterContai
 
 	@Override
 	public void render(GuiGraphics matrix, int mouseX, int mouseY, float partialTicks){
-		renderBackground(matrix);
+		renderBackground(matrix, mouseX, mouseY, partialTicks);
 		super.render(matrix, mouseX, mouseY, partialTicks);
 		renderTooltip(matrix, mouseX, mouseY);//MCP note: renderHoveredToolTip
 	}

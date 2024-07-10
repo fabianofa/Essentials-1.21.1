@@ -3,50 +3,49 @@ package com.Da_Technomancer.essentials.api.packets;
 import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.items.CircuitWrench;
 import com.Da_Technomancer.essentials.items.ESItems;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.lang.reflect.Field;
+public record ConfigureWrenchOnServer(int modeIndex) implements CustomPacketPayload{
 
-public class ConfigureWrenchOnServer extends ServerPacket{
-
-	public int modeIndex;
-
-	private static final Field[] FIELDS = fetchFields(ConfigureWrenchOnServer.class, "modeIndex");
-
-	public ConfigureWrenchOnServer(){
-
-	}
-
-	public ConfigureWrenchOnServer(int newModeIndex){
-		this.modeIndex = newModeIndex;
-	}
-
-	@Nonnull
-	@Override
-	protected Field[] getFields(){
-		return FIELDS;
-	}
+	public static final CustomPacketPayload.Type<ConfigureWrenchOnServer> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Essentials.MODID, "configure_wrench_server"));
+	public static final StreamCodec<ByteBuf, ConfigureWrenchOnServer> STREAM_CODEC = StreamCodec.composite(
+			ByteBufCodecs.VAR_INT,
+			ConfigureWrenchOnServer::modeIndex,
+			ConfigureWrenchOnServer::new
+	);
 
 	@Override
-	protected void run(@Nullable ServerPlayer player){
-		if(player == null){
-			Essentials.logger.warn("Player was null on packet arrival");
-			return;
-		}
-		InteractionHand hand = null;
-		if(player.getMainHandItem().getItem() == ESItems.circuitWrench){
-			hand = InteractionHand.MAIN_HAND;
-		}else if(player.getOffhandItem().getItem() == ESItems.circuitWrench){
-			hand = InteractionHand.OFF_HAND;
-		}
+	public Type<? extends CustomPacketPayload> type(){
+		return TYPE;
+	}
 
-		if(hand != null){
-			ItemStack held = player.getItemInHand(hand);
-			held.getOrCreateTag().putInt(CircuitWrench.NBT_KEY, modeIndex);
-		}
+
+	static void handlePacketServer(final ConfigureWrenchOnServer packet, final IPayloadContext context){
+		context.enqueueWork(() -> {
+			Player player = context.player();
+			if(player == null){
+				Essentials.logger.warn("Player was null on packet arrival");
+				return;
+			}
+			InteractionHand hand = null;
+			if(player.getMainHandItem().getItem() == ESItems.circuitWrench){
+				hand = InteractionHand.MAIN_HAND;
+			}else if(player.getOffhandItem().getItem() == ESItems.circuitWrench){
+				hand = InteractionHand.OFF_HAND;
+			}
+
+			if(hand != null){
+				ItemStack held = player.getItemInHand(hand);
+				held.set(ESItems.WRENCH_SELECTION_DATA, new CircuitWrench.Selection(packet.modeIndex));
+			}
+		});
 	}
 }

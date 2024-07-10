@@ -7,12 +7,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
@@ -30,32 +30,29 @@ public abstract class AbstractSplitter extends TEBlock{
 
 	@Override
 	public void neighborChanged(BlockState state, Level worldIn, BlockPos pos, Block blockIn, BlockPos fromPos, boolean flag){
-		BlockEntity te = worldIn.getBlockEntity(pos);
-		if(te instanceof AbstractSplitterTE){
-			((AbstractSplitterTE) te).refreshCache();
+		if(worldIn.getBlockEntity(pos) instanceof AbstractSplitterTE<?> te){
+			te.refreshCache();
 		}
 	}
 
 	protected abstract Component getModeComponent(AbstractSplitterTE te, int newMode);
 
 	@Override
-	public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player playerIn, InteractionHand hand, BlockHitResult trace){
-		if(ConfigUtil.isWrench(playerIn.getItemInHand(hand))){
-			if(!worldIn.isClientSide){
-				if(isBasic() && playerIn.isShiftKeyDown()){
-					BlockEntity te = worldIn.getBlockEntity(pos);
-					if(te instanceof AbstractSplitterTE){
-						int mode = ((AbstractSplitterTE) te).increaseMode();
-						playerIn.displayClientMessage(getModeComponent((AbstractSplitterTE) te, mode), true);
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit){
+		if(ConfigUtil.isWrench(player.getItemInHand(hand))){
+			if(!world.isClientSide){
+				if(isBasic() && player.isShiftKeyDown()){
+					if(world.getBlockEntity(pos) instanceof AbstractSplitterTE<?> splitter){
+						int mode = splitter.increaseMode();
+						player.displayClientMessage(getModeComponent(splitter, mode), true);
 					}
 				}else{
-					worldIn.setBlockAndUpdate(pos, state.cycle(ESProperties.FACING));//MCP note: cycle
+					world.setBlockAndUpdate(pos, state.cycle(ESProperties.FACING));
 				}
 			}
-			return InteractionResult.SUCCESS;
+			return ItemInteractionResult.sidedSuccess(world.isClientSide);
 		}
-
-		return InteractionResult.PASS;
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 	}
 
 	@Nullable

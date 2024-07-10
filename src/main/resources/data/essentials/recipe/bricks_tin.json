@@ -1,0 +1,29 @@
+{
+	"neoforge:conditions": [
+		{
+			"type": "neoforge:not",
+			"value": {
+				"type": "neoforge:tag_empty",
+				"tag" : "c:ingots/tin"
+			}
+		}
+	],
+	"type" : "minecraft:crafting_shaped",
+	"result" : {
+		"id" : "essentials:bricks_tin",
+		"count" : 8
+	},
+	"pattern" : [
+		"***",
+		"*I*",
+		"***"
+	],
+	"key" : {
+		"*" : {
+			"tag" : "minecraft:stone_bricks"
+		},
+		"I" : {
+			"tag" : "c:ingots/tin"
+		}
+	}
+}

@@ -2,10 +2,12 @@ package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
 import com.Da_Technomancer.essentials.api.FluidSlotManager;
+import com.Da_Technomancer.essentials.api.IFluidCapable;
 import com.Da_Technomancer.essentials.api.IFluidSlotTE;
 import com.Da_Technomancer.essentials.gui.container.FluidShifterContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -13,18 +15,17 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.fluidShifter;
 
-public class FluidShifterTileEntity extends AbstractShifterTileEntity implements IFluidSlotTE{
+public class FluidShifterTileEntity extends AbstractShifterTileEntity<IFluidHandler> implements IFluidSlotTE, IFluidCapable{
 
 	public static final BlockEntityType<FluidShifterTileEntity> TYPE = ESTileEntity.createType(FluidShifterTileEntity::new, fluidShifter);
 
@@ -46,12 +47,17 @@ public class FluidShifterTileEntity extends AbstractShifterTileEntity implements
 	}
 
 	@Override
+	protected BlockCapability<IFluidHandler, Direction> getCapability(){
+		return Capabilities.FluidHandler.BLOCK;
+	}
+
+	@Override
 	public void serverTick(){
-		if(endPos == null){
+		if(outputCache == null){
 			refreshCache();
 		}
 
-		FluidStack remaining = AbstractShifterTileEntity.ejectFluid(level, endPos, getFacing(), fluid);
+		FluidStack remaining = AbstractShifterTileEntity.ejectFluid(level, endPos, fluid, outputCache);
 		if(remaining.getAmount() != fluid.getAmount()){
 			fluid = remaining;
 			getFluidManager().updateState(fluid);
@@ -60,41 +66,31 @@ public class FluidShifterTileEntity extends AbstractShifterTileEntity implements
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
-		nbt.put("fluid", fluid.writeToNBT(new CompoundTag()));
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
+		nbt.put("fluid", BlockUtil.stackToNBT(fluid, registries));
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
-		fluid = FluidStack.loadFluidStackFromNBT(nbt.getCompound("fluid"));
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
+		fluid = BlockUtil.nbtToFluidStack(nbt.getCompound("fluid"), registries);
 	}
 
 	@Override
-	public CompoundTag getUpdateTag(){
-		CompoundTag nbt = super.getUpdateTag();
-		saveAdditional(nbt);
+	public CompoundTag getUpdateTag(HolderLookup.Provider registries){
+		CompoundTag nbt = super.getUpdateTag(registries);
+		saveAdditional(nbt, registries);
 		return nbt;
 	}
 
+	@Nullable
 	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		invOptional.invalidate();
+	public IFluidHandler getFluidHandler(Direction dir){
+		return invHandler;
 	}
 
-	private LazyOptional<IFluidHandler> invOptional = LazyOptional.of(FluidHandler::new);
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction facing){
-		if(cap == ForgeCapabilities.FLUID_HANDLER){
-			return (LazyOptional<T>) invOptional;
-		}
-
-		return super.getCapability(cap, facing);
-	}
+	private final IFluidHandler invHandler = new FluidHandler();
 
 	@Override
 	public Component getDisplayName(){
@@ -109,14 +105,8 @@ public class FluidShifterTileEntity extends AbstractShifterTileEntity implements
 
 	@Override
 	public IFluidHandler getFluidHandler(){
-		return invOptional.orElseGet(FluidHandler::new);
+		return invHandler;
 	}
-
-//	@Override
-//	public void receiveNBT(CompoundNBT nbt, @Nullable ServerPlayerEntity sender){
-//		getFluidManager().handlePacket(nbt);
-//		fluid = getFluidManager().getStack();
-//	}
 
 	private class FluidHandler implements IFluidHandler{
 

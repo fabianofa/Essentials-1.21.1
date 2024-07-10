@@ -1,6 +1,7 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import com.Da_Technomancer.essentials.api.ITickableTileEntity;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -13,18 +14,18 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.brazier;
 
-public class BrazierTileEntity extends BlockEntity implements ITickableTileEntity{
+public class BrazierTileEntity extends BlockEntity implements ITickableTileEntity, IItemCapable{
+
+	//TODO rework and remodel
 
 	/**
 	 * Dirty optimization as a faster way of finding all braziers within range of events. Server-side only.
@@ -169,13 +170,10 @@ public class BrazierTileEntity extends BlockEntity implements ITickableTileEntit
 
 	private final FuelHandler fuelHandler = new FuelHandler();
 
-	@SuppressWarnings("unchecked")
+	@Nullable
 	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side){
-		if(cap == ForgeCapabilities.ITEM_HANDLER){
-			return (LazyOptional<T>) LazyOptional.of(() -> fuelHandler);
-		}
-		return super.getCapability(cap, side);
+	public IItemHandler getItemHandler(Direction dir){
+		return fuelHandler;
 	}
 
 	private class FuelHandler implements IItemHandler{

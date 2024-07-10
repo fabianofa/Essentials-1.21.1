@@ -1,22 +1,16 @@
 package com.Da_Technomancer.essentials.gui.container;
 
-import com.Da_Technomancer.essentials.Essentials;
 import com.Da_Technomancer.essentials.items.ESItems;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ObjectHolder;
 
 public class CircuitWrenchContainer extends AbstractContainerMenu{
 
-	@ObjectHolder(registryName="menu", value=Essentials.MODID + ":circuit_wrench")
-	private static MenuType<CircuitWrenchContainer> TYPE = null;
-
 	public CircuitWrenchContainer(int id, Inventory playerInventory, FriendlyByteBuf data){
-		super(TYPE, id);
+		super(ESContainers.CIRCUIT_WRENCH_CONTAINER.get(), id);
 	}
 
 	@Override

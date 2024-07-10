@@ -1,22 +1,25 @@
 package com.Da_Technomancer.essentials.blocks;
 
 import com.Da_Technomancer.essentials.api.BlockUtil;
+import com.Da_Technomancer.essentials.api.ESProperties;
+import com.Da_Technomancer.essentials.api.IItemCapable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static com.Da_Technomancer.essentials.blocks.ESBlocks.basicItemSplitter;
 
-public class BasicItemSplitterTileEntity extends AbstractSplitterTE{
+public class BasicItemSplitterTileEntity extends AbstractSplitterTE<IItemHandler> implements IItemCapable{
 
 	public static final BlockEntityType<BasicItemSplitterTileEntity> TYPE = ESTileEntity.createType(BasicItemSplitterTileEntity::new, basicItemSplitter);
 
@@ -32,15 +35,8 @@ public class BasicItemSplitterTileEntity extends AbstractSplitterTE{
 	}
 
 	@Override
-	public void setBlockState(BlockState state){
-		super.setBlockState(state);
-		primaryOpt.invalidate();
-		secondaryOpt.invalidate();
-		inOpt.invalidate();
-		primaryOpt = LazyOptional.of(() -> new OutItemHandler(1));
-		secondaryOpt = LazyOptional.of(() -> new OutItemHandler(0));
-		inOpt = LazyOptional.of(InHandler::new);
-		endPos[0] = endPos[1] = null;
+	protected BlockCapability<IItemHandler, Direction> getCapability(){
+		return Capabilities.ItemHandler.BLOCK;
 	}
 
 	@Override
@@ -49,66 +45,50 @@ public class BasicItemSplitterTileEntity extends AbstractSplitterTE{
 			refreshCache();
 		}
 
-		Direction dir = getFacing();
 		for(int i = 0; i < 2; i++){
-			inventory[i] = AbstractShifterTileEntity.ejectItem(level, endPos[i], i == 0 ? dir : dir.getOpposite(), inventory[i], null);
+			inventory[i] = AbstractShifterTileEntity.ejectItem(level, endPos[i], inventory[i], outputCache[i]);
 		}
 		setChanged();
 	}
 
+	private final IItemHandler primaryHandler = new OutItemHandler(1);
+	private final IItemHandler secondaryHandler = new OutItemHandler(0);
+	private final IItemHandler inHandler = new InHandler();
+
+	@Nullable
 	@Override
-	public void setRemoved(){
-		super.setRemoved();
-		primaryOpt.invalidate();
-		secondaryOpt.invalidate();
-		inOpt.invalidate();
-	}
-
-	private LazyOptional<IItemHandler> primaryOpt = LazyOptional.of(() -> new OutItemHandler(1));
-	private LazyOptional<IItemHandler> secondaryOpt = LazyOptional.of(() -> new OutItemHandler(0));
-	private LazyOptional<IItemHandler> inOpt = LazyOptional.of(InHandler::new);
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side){
-		if(cap == ForgeCapabilities.ITEM_HANDLER){
-			Direction dir = getFacing();
-
-			return (LazyOptional<T>) (side == dir ? primaryOpt : side == dir.getOpposite() ? secondaryOpt : inOpt);
-		}
-
-		return super.getCapability(cap, side);
+	public IItemHandler getItemHandler(Direction side){
+		Direction dir = BlockUtil.evaluateProperty(getBlockState(), ESProperties.FACING, Direction.DOWN);
+		return side == dir ? primaryHandler : side == dir.getOpposite() ? secondaryHandler : inHandler;
 	}
 
 	@Override
-	public void saveAdditional(CompoundTag nbt){
-		super.saveAdditional(nbt);
-		nbt.putByte("type", (byte) 1);//Version number for the nbt data
+	public void saveAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.saveAdditional(nbt, registries);
+//		nbt.putByte("type", (byte) 1);//Version number for the nbt data
 		nbt.putInt("mode", mode);
 		nbt.putInt("transferred", transferred);
 		for(int i = 0; i < 2; i++){
 			if(!inventory[i].isEmpty()){
-				CompoundTag inner = new CompoundTag();
-				inventory[i].save(inner);
-				nbt.put("inv_" + i, inner);
+				nbt.put("inv_" + i, BlockUtil.stackToNBT(inventory[i], registries));
 			}
 		}
 	}
 
 	@Override
-	public void load(CompoundTag nbt){
-		super.load(nbt);
+	public void loadAdditional(CompoundTag nbt, HolderLookup.Provider registries){
+		super.loadAdditional(nbt, registries);
 
 		//The way this block saves to nbt was changed in 2.2.0, and a "type" of 1 means the encoding is the new version, while 0 mean old version
-		if(nbt.getByte("type") == 1){
-			mode = nbt.getInt("mode");
-		}else{
-			mode = 3 + 3 * nbt.getInt("mode");
-		}
+//		if(nbt.getByte("type") == 1){
+		mode = nbt.getInt("mode");
+//		}else{
+//			mode = 3 + 3 * nbt.getInt("mode");
+//		}
 
 		transferred = nbt.getInt("transferred");
 		for(int i = 0; i < 2; i++){
-			inventory[i] = ItemStack.of(nbt.getCompound("inv_" + i));
+			inventory[i] = BlockUtil.nbtToItemStack(nbt.getCompound("inv_" + i), registries);
 		}
 	}
 
@@ -276,7 +256,7 @@ public class BasicItemSplitterTileEntity extends AbstractSplitterTE{
 
 			int moved = Math.min(amount, inventory[index].getCount());
 			if(simulate){
-				return new ItemStack(inventory[index].getItem(), moved, inventory[index].getTag());
+				return inventory[index].copyWithCount(moved);
 			}
 			setChanged();
 			return inventory[index].split(moved);
