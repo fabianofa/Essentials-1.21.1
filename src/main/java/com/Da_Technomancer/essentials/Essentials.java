@@ -27,7 +27,6 @@ public final class Essentials{
 	public Essentials(IEventBus modBus, ModContainer modContainer){
 		modBus.addListener(this::commonInit);
 		modBus.addListener(this::clientInit);
-		modBus.addListener(this::serverInit);
 
 		ESBlocks.init(modBus);
 		ESItems.init(modBus);
@@ -48,9 +47,5 @@ public final class Essentials{
 		// Still needed for candle lilypad to render properly as of Forge 41.0.98
 //		ItemBlockRenderTypes.setRenderLayer(hopperFilter, RenderType.cutout());
 		ItemBlockRenderTypes.setRenderLayer(ESBlocks.candleLilyPad, RenderType.cutout());
-	}
-
-	private void serverInit(@SuppressWarnings("unused") FMLDedicatedServerSetupEvent e){
-		NeoForge.EVENT_BUS.register(ESEventHandlerServer.class);
 	}
 }
